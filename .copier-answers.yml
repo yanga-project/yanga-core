@@ -1,0 +1,21 @@
+# Changes here will be overwritten by Copier
+_commit: a9adebd
+_src_path: .
+copyright_year: "2026"
+documentation: false
+email: cuinixam@gmail.com
+full_name: cuinixam
+github_username: cuinixam
+has_cli: false
+initial_commit: false
+is_django_package: false
+open_source_license: MIT
+open_with_editor: false
+package_name: yanga_core
+project_name: Yanga Core
+project_short_description: Build-system-agnostic framework for C/C++
+  software product line engineering.
+project_slug: yanga-core
+run_uv_sync: false
+setup_github: false
+setup_pre_commit: false

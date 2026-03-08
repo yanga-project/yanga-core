@@ -1,0 +1,67 @@
+# Configuration file for the Sphinx documentation builder.
+#
+# For the full list of built-in configuration values, see the documentation:
+# https://www.sphinx-doc.org/en/master/usage/configuration.html
+from pathlib import Path
+
+project_root_path = Path(__file__).parent.parent
+
+project = "Yanga Core"
+copyright = "cuinixam"
+author = "cuinixam"
+release = "0.0.0"
+
+extensions = []
+
+# https://github.com/executablebooks/sphinx-design
+extensions.append("sphinx_design")
+
+# https://myst-parser.readthedocs.io/en/latest/intro.html
+extensions.append("myst_parser")
+
+myst_enable_extensions = [
+    "colon_fence",
+    "deflist",
+    "html_admonition",
+    "html_image",
+]
+
+# mermaid config - @see https://pypi.org/project/sphinxcontrib-mermaid/
+extensions.append("sphinxcontrib.mermaid")
+
+# Configure extensions for include doc-strings from code
+extensions.extend(
+    [
+        "sphinx.ext.autodoc",
+        "sphinx.ext.autosummary",
+        "sphinx.ext.napoleon",
+        "sphinx.ext.viewcode",
+    ]
+)
+
+# The suffix of source filenames.
+source_suffix = [
+    ".rst",
+    ".md",
+]
+
+templates_path = ["_templates"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# copy button for code block
+extensions.append("sphinx_copybutton")
+
+# -- Options for HTML output -------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+
+html_theme = "furo"
+html_logo = "_static/yanga.png"
+html_theme_options = {
+    "source_repository": "https://github.com/yanga-project/yanga-core",
+    "source_branch": "main",
+    "source_directory": "docs/",
+    "navigation_with_keys": True,
+}
+html_static_path = [
+    "_static",
+]

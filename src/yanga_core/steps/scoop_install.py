@@ -1,0 +1,32 @@
+from pathlib import Path
+from typing import Any
+
+from yanga_core.domain.config_utils import collect_configs_by_id, parse_config
+from yanga_core.domain.execution_context import ExecutionContext
+from yanga_core.steps.scoop_install_base import ScoopInstall as BaseScoopInstall
+from yanga_core.steps.scoop_install_base import ScoopManifest
+
+
+class ScoopInstall(BaseScoopInstall[ExecutionContext]):
+    def __init__(self, execution_context: ExecutionContext, group_name: str, config: dict[str, Any] | None = None) -> None:
+        super().__init__(execution_context, group_name, config)
+        self.artifacts_locator = execution_context.spl_paths
+
+    def _collect_dependencies(self) -> ScoopManifest:
+        collected_manifest = super()._collect_dependencies()
+
+        # Collect configs with id="scoop" from variant, platform, variant-platform
+        configs = collect_configs_by_id(self.execution_context, "scoop")
+        for cfg in configs:
+            manifest = parse_config(cfg, ScoopManifest, self.project_root_dir)
+            self._merge_buckets(collected_manifest, manifest.buckets)
+            self._merge_apps(collected_manifest, manifest.apps)
+
+        return collected_manifest
+
+    @property
+    def output_dir(self) -> Path:
+        return self.artifacts_locator.variant_build_dir
+
+    def get_name(self) -> str:
+        return self.__class__.__name__
