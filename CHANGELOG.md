@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.0 (2026-03-10)
+
+### Features
+
+- Add type hints support with py.typed file ([`1f2bde9`](https://github.com/yanga-project/yanga-core/commit/1f2bde907311c63d507a5530a3ffa94551a4c169))
+
 ## v0.0.1 (2026-03-10)
 
 ### Bug fixes
