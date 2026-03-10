@@ -32,7 +32,7 @@
 
 ---
 
-**Source Code**: <a href="https://github.com/yanga-project/yanga-core" target="_blank">https://github.com/yanga-project/yanga-core </a>
+**Source Code**: <a href="https://github.com/yanga-project/yanga-core" target="_blank">https://github.com/yanga-project/yanga-core</a>
 
 ---
 
@@ -44,14 +44,6 @@ Yanga Core provides data models, configuration loading, pipeline steps, and comm
 - Run build pipeline steps (KConfig generation, dependency installation, static analysis, ...)
 - Generate HTML reports (CppCheck, Sphinx docs, coverage)
 
-## Key Concepts
-
-- **Platform** — build target with generators and build types (Debug, Release, ...)
-- **Variant** — product configuration that picks which components to build for a platform
-- **Component** — source code unit with sources, tests, docs, and include directories
-- **ExecutionContext** — holds the active variant, platform, components, and shared data registry
-- **Pipeline Step** — one step in the build pipeline (e.g. KConfig generation, dependency installation)
-
 ## Installation
 
 Requires Python 3.10+.
@@ -60,59 +52,31 @@ Requires Python 3.10+.
 pip install yanga-core
 ```
 
-## Usage
+## Quick Start
 
-`yanga-core` is a library, not a standalone CLI. Applications import its modules and compose them. See [Yanga](https://github.com/yanga-project/yanga) for a CMake-based application using `yanga-core`.
+`yanga-core` is a library, not a standalone CLI. Applications import its modules and compose them. See [Yanga](https://github.com/yanga-project/yanga) for a CMake-based application built on `yanga-core`.
 
 ```python
-from yanga_core.domain.config import PlatformConfig, VariantConfig
-from yanga_core.domain.components import Component
-from yanga_core.domain.execution_context import ExecutionContext, UserRequest, UserRequestScope
-from yanga_core.domain.project_slurper import ProjectSlurper
+from pathlib import Path
+from yanga_core.domain.project_slurper import YangaProjectSlurper
+
+slurper = YangaProjectSlurper(project_dir=Path("."))
+for variant in slurper.variants:
+    print(f"Variant: {variant.name}, components: {variant.components}")
 ```
 
-### Core Modules
+## Documentation
 
-| Module                | Description                                                                |
-| --------------------- | -------------------------------------------------------------------------- |
-| `yanga_core.domain`   | Config models, components, execution context, artifacts                    |
-| `yanga_core.commands` | Commands for running steps, reports, compile commands, CppCheck, HTML fixes |
-| `yanga_core.steps`    | Pipeline steps for `pypeline` (KConfig, dependency install, reports)       |
-| `yanga_core.docs`     | Sphinx doc generation helpers                                              |
+Full documentation is available in the [docs/](docs/) directory:
+
+- **[Tutorials](docs/tutorials/)** — learn yanga-core step-by-step
+- **[How-to Guides](docs/how-to/)** — task-oriented guides for specific goals
+- **[Reference](docs/reference/)** — configuration, domain model, pipeline, and API
+- **[Explanation](docs/explanation/)** — architecture, design decisions, and concepts
 
 ## Contributing
 
-### Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/yanga-project/yanga-core.git
-cd yanga-core
-
-# Install dependencies (using uv)
-uv sync
-```
-
-### Running Tests
-
-The project uses [pypeline-runner](https://github.com/yanga-project/pypeline) for automation:
-
-```bash
-# Run full pipeline (lint + tests)
-pypeline run
-
-# Run only linting
-pypeline run --step PreCommit
-
-# Run only tests with a specific Python version
-pypeline run --step CreateVEnv --step PyTest --single --input python_version=3.13
-```
-
-### Code Quality
-
-- [Ruff](https://github.com/astral-sh/ruff) for linting and formatting
-- [pre-commit](https://pre-commit.com/) hooks enforce code standards
-- Commits must follow [conventional commits](https://www.conventionalcommits.org)
+See the [Contributing Guide](docs/how-to/contributing.md) for setup instructions, running tests, and code quality standards.
 
 ## Credits
 

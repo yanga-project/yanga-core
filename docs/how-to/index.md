@@ -11,4 +11,5 @@ configure-dependencies
 create-variant
 create-custom-step
 feature-model
+contributing
 ```

@@ -13,4 +13,5 @@ pipeline
 steps
 cli
 api
+coding-guidelines
 ```
