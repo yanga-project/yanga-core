@@ -1,3 +1,4 @@
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -11,6 +12,11 @@ from py_app_dev.core.pipeline import PipelineConfig as GenericPipelineConfig
 from pypeline.domain.pipeline import PipelineConfig
 from yaml.parser import ParserError
 from yaml.scanner import ScannerError
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 
 @dataclass
@@ -123,7 +129,7 @@ class VariantConfig(BaseConfigDictMixin):
 
 class StringableEnum(Enum):
     @classmethod
-    def from_string(cls, name: str) -> "StringableEnum":
+    def from_string(cls, name: str) -> Self:
         return getattr(cls, str(name).upper())
 
     def to_string(self) -> str:
