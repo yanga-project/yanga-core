@@ -39,6 +39,12 @@ def env_with_platform(tmp_path: Path) -> ExecutionContext:
     return env
 
 
+def test_check_paths(env: ExecutionContext) -> None:
+    """Test generating report config when no ReportRelevantFiles are registered."""
+    step = GenerateReportConfig(env)
+    assert step.output_dir == env.spl_paths.variant_build_dir
+
+
 def test_generate_report_config_empty_registry(env: ExecutionContext) -> None:
     """Test generating report config when no ReportRelevantFiles are registered."""
     step = GenerateReportConfig(env)

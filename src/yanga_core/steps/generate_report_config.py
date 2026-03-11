@@ -23,8 +23,12 @@ class GenerateReportConfig(PipelineStep[ExecutionContext]):
         self.logger = logger.bind()
 
     @property
+    def output_dir(self) -> Path:
+        return self.execution_context.spl_paths.variant_build_dir
+
+    @property
     def report_config_file(self) -> Path:
-        return self.execution_context.spl_paths.variant_build_dir / "report_config.json"
+        return self.output_dir / "report_config.json"
 
     def get_name(self) -> str:
         return self.__class__.__name__
