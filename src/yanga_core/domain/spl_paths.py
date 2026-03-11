@@ -2,9 +2,10 @@ import sys
 from pathlib import Path
 
 from py_app_dev.core.exceptions import UserNotificationException
+from pypeline.domain.artifacts import ProjectArtifactsLocator
 
 
-class SPLPaths:
+class SPLPaths(ProjectArtifactsLocator):
     """Provides resolved paths for an SPL project build context."""
 
     def __init__(
@@ -15,7 +16,7 @@ class SPLPaths:
         build_type: str | None,
         create_yanga_build_dir: bool = True,
     ) -> None:
-        self.project_root_dir = project_root_dir
+        super().__init__(project_root_dir)
         yanga_out_dir = project_root_dir / ".yanga"
         self.build_dir = yanga_out_dir / "build" if create_yanga_build_dir else project_root_dir / "build"
         self.variants_dir = project_root_dir / "variants"

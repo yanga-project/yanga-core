@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 
+from pypeline.domain.artifacts import ProjectArtifactsLocator
 from pypeline.domain.execution_context import ExecutionContext as _ExecutionContext
 
 from .components import Component
@@ -94,3 +95,6 @@ class ExecutionContext(_ExecutionContext):
             self.user_request.build_type,
             create_yanga_build_dir=self.create_yanga_build_dir,
         )
+
+    def create_artifacts_locator(self) -> ProjectArtifactsLocator:
+        return self.spl_paths
