@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1 (2026-03-11)
+
+### Bug fixes
+
+- Create artifacts locator uses different paths as spl-paths ([`05e570e`](https://github.com/yanga-project/yanga-core/commit/05e570e6b3071fd70a9bb1cbe4b2d9a9b9dc2f08))
+
 ## v0.1.0 (2026-03-10)
 
 ### Features
