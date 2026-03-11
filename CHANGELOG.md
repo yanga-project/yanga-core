@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.2 (2026-03-11)
+
+### Bug fixes
+
+- Generate report step output path is incorrect ([`b0dca3e`](https://github.com/yanga-project/yanga-core/commit/b0dca3e5b7d04e2ef5bb9a23973e62a607a8d33b))
+
 ## v0.1.1 (2026-03-11)
 
 ### Bug fixes
