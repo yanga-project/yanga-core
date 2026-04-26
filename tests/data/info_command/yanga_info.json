@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "project_dir": "<PROJECT_DIR>",
+  "config_files": [
+    "yanga.yaml"
+  ],
+  "watch_patterns": [
+    "**/yanga.yaml"
+  ],
+  "ignore_patterns": [
+    ".git/**",
+    ".github/**",
+    ".venv/**",
+    ".vscode/**",
+    "build/**"
+  ],
+  "platforms": [
+    {
+      "name": "gtest",
+      "build_types": [
+        "Debug",
+        "Release"
+      ],
+      "build_targets": [
+        "unit_tests"
+      ],
+      "components": [
+        "mock_lib"
+      ]
+    },
+    {
+      "name": "arduino_nano",
+      "build_types": [
+        "Release"
+      ],
+      "build_targets": [],
+      "components": []
+    }
+  ],
+  "variants": [
+    {
+      "name": "Disco",
+      "components": [
+        "app",
+        "common"
+      ],
+      "platform_components": {
+        "gtest": [
+          "disco_test_helpers"
+        ]
+      }
+    },
+    {
+      "name": "Spa",
+      "components": [
+        "app"
+      ],
+      "platform_components": {}
+    }
+  ],
+  "components": [
+    {
+      "name": "app",
+      "path": "src/app"
+    },
+    {
+      "name": "common",
+      "path": "src/common"
+    },
+    {
+      "name": "mock_lib",
+      "path": "src/platforms/gtest/mock_lib"
+    },
+    {
+      "name": "disco_test_helpers",
+      "path": "variants/Disco/test_helpers"
+    }
+  ],
+  "diagnostics": []
+}

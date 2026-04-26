@@ -12,6 +12,9 @@ from .components import Component
 from .config import ComponentConfig, ConfigFile, DocsConfiguration, PlatformConfig, TestingConfiguration, VariantConfig, YangaUserConfig
 from .config_slurper import YangaConfigSlurper
 
+#: Directories always skipped by the project discovery walk, in addition to any user-configured ``exclude_dirs``.
+DEFAULT_EXCLUDE_DIRS: list[str] = [".git", ".github", ".vscode", "build", ".venv"]
+
 
 class ComponentFactory:
     def __init__(self, project_dir: Path) -> None:
@@ -172,8 +175,7 @@ class YangaProjectSlurper:
         self.component_factory = ComponentFactory(self.project_dir)
         exclude = exclude_dirs if exclude_dirs else []
         # Merge the exclude directories with the hardcoded ones
-        exclude = list({*exclude, ".git", ".github", ".vscode", "build", ".venv"})
-        # TODO: Get rid of the exclude directories hardcoded list. Maybe use an ini file?
+        exclude = list({*exclude, *DEFAULT_EXCLUDE_DIRS})
         self.user_configs: list[YangaUserConfig] = YangaConfigSlurper(project_dir=self.project_dir, exclude_dirs=exclude, configuration_file_name=configuration_file_name).slurp()
         self.components_configs_pool: ComponentsConfigsPool = self._collect_components_configs(self.user_configs)
         self.pipeline: Optional[PipelineConfig] = self._find_pipeline_config(self.user_configs)

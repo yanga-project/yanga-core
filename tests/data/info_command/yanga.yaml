@@ -1,0 +1,26 @@
+variants:
+  - name: Disco
+    components: [app, common]
+    platforms:
+      gtest:
+        components: [disco_test_helpers]
+  - name: Spa
+    components: [app]
+
+platforms:
+  - name: gtest
+    build_types: [Debug, Release]
+    build_targets: [unit_tests]
+    components: [mock_lib]
+  - name: arduino_nano
+    build_types: [Release]
+
+components:
+  - name: app
+    path: src/app
+  - name: common
+    path: src/common
+  - name: mock_lib
+    path: src/platforms/gtest/mock_lib
+  - name: disco_test_helpers
+    path: variants/Disco/test_helpers
