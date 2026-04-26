@@ -1,6 +1,6 @@
 [project]
 name = "yanga-core"
-version = "0.1.2"
+version = "0.2.0"
 description = "Core library for C/C++ software product line engineering."
 readme = "README.md"
 license = "MIT"

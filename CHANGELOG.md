@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0 (2026-04-26)
+
+### Features
+
+- Add command to print the project info ([`c12b73d`](https://github.com/yanga-project/yanga-core/commit/c12b73d71047e1e82ca7d24cca7c5450ea833c48))
+
 ## v0.1.2 (2026-03-11)
 
 ### Bug fixes
