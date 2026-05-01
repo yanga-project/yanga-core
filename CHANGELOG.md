@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.0 (2026-05-01)
+
+### Features
+
+- Add effective component resolution to infoproject ([`46f3cf7`](https://github.com/yanga-project/yanga-core/commit/46f3cf7210d312359d45d016e31de56f4d59525e))
+- Distinguish between variant and component specific build targets ([`08db671`](https://github.com/yanga-project/yanga-core/commit/08db67187ee5478b87f1b41b98b0ff73acefbf63))
+
 ## v0.2.0 (2026-04-26)
 
 ### Features
