@@ -66,6 +66,41 @@ class InfoProject(BaseConfigJSONMixin):
     components: list[InfoComponent] = field(default_factory=list)
     diagnostics: list[InfoDiagnostic] = field(default_factory=list)
 
+    def find_platform(self, name: str | None) -> InfoPlatform | None:
+        if not name:
+            return None
+        return next((p for p in self.platforms if p.name == name), None)
+
+    def find_variant(self, name: str | None) -> InfoVariant | None:
+        if not name:
+            return None
+        return next((v for v in self.variants if v.name == name), None)
+
+    def get_effective_variant_components(self, variant_name: str, platform_name: str | None) -> list[str]:
+        """
+        Effective component name list for a (variant, platform) pair.
+
+        Merges (in order) variant base components, the variant's platform overlay,
+        and the platform's own component list. Deduplicated, order-preserving.
+        """
+        variant = self.find_variant(variant_name)
+        if variant is None:
+            return []
+        sources: list[list[str]] = [variant.components]
+        if platform_name:
+            sources.append(variant.platform_components.get(platform_name, []))
+            platform = self.find_platform(platform_name)
+            if platform is not None:
+                sources.append(platform.components)
+        seen: set[str] = set()
+        out: list[str] = []
+        for src in sources:
+            for name in src:
+                if name not in seen:
+                    seen.add(name)
+                    out.append(name)
+        return out
+
 
 def build_info_project(
     project_dir: Path,

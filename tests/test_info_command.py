@@ -134,6 +134,64 @@ def test_build_targets_component_only_preserves_empty_keys(tmp_path: Path, capsy
     assert '"variant": []' in payload
 
 
+def test_get_effective_variant_components_merges_three_sources(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    write_file(
+        tmp_path / "yanga.yaml",
+        _yanga_yaml("""
+            variants:
+              - name: V
+                components: [app, common]
+                platforms:
+                  host:
+                    components: [host_helpers]
+            platforms:
+              - name: host
+                components: [mock_lib]
+            components:
+              - name: app
+              - name: common
+              - name: host_helpers
+              - name: mock_lib
+        """),
+    )
+
+    _, info, _ = _run_and_parse(tmp_path, capsys)
+
+    assert info.get_effective_variant_components("V", "host") == ["app", "common", "host_helpers", "mock_lib"]
+
+
+def test_get_effective_variant_components_dedupes_overlap(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    write_file(
+        tmp_path / "yanga.yaml",
+        _yanga_yaml("""
+            variants:
+              - name: V
+                components: [app, shared]
+                platforms:
+                  host:
+                    components: [shared, helpers]
+            platforms:
+              - name: host
+                components: [helpers, mock_lib]
+            components:
+              - name: app
+              - name: shared
+              - name: helpers
+              - name: mock_lib
+        """),
+    )
+
+    _, info, _ = _run_and_parse(tmp_path, capsys)
+
+    assert info.get_effective_variant_components("V", "host") == ["app", "shared", "helpers", "mock_lib"]
+
+
+def test_get_effective_variant_components_unknown_variant_returns_empty(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _make_minimal_project(tmp_path)
+    _, info, _ = _run_and_parse(tmp_path, capsys)
+    assert info.get_effective_variant_components("DoesNotExist", "gtest") == []
+
+
 def test_three_source_component_union(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     write_file(
         tmp_path / "yanga.yaml",
