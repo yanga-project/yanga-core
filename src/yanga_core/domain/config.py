@@ -78,6 +78,33 @@ class DocsConfiguration(BaseConfigDictMixin):
 
 
 @dataclass
+class BuildTargets(BaseConfigDictMixin):
+    """
+    Scoped build targets for a platform.
+
+    `generic` targets apply to both variant and component scopes; `variant` and
+    `component` lists carry scope-only targets. Effective sets are computed by
+    merging `generic` with the scope-specific list, deduplicated and order-preserving.
+    """
+
+    generic: list[str] = field(default_factory=list)
+    variant: list[str] = field(default_factory=list)
+    component: list[str] = field(default_factory=list)
+
+    @property
+    def variant_targets(self) -> list[str]:
+        return _dedup_preserve_order(self.generic, self.variant)
+
+    @property
+    def component_targets(self) -> list[str]:
+        return _dedup_preserve_order(self.generic, self.component)
+
+
+def _dedup_preserve_order(*lists: list[str]) -> list[str]:
+    return list(dict.fromkeys(item for lst in lists for item in lst))
+
+
+@dataclass
 class PlatformConfig(BaseConfigDictMixin):
     #: Platform name
     name: str
@@ -87,8 +114,11 @@ class PlatformConfig(BaseConfigDictMixin):
     generators: GenericPipelineConfig = field(default_factory=list)
     #: Supported build types
     build_types: list[str] = field(default_factory=list)
-    #: Supported targets
-    build_targets: list[str] | None = None
+    #: Supported targets. Either a flat list (applies to both scopes) or a
+    #: ``BuildTargets`` object that splits targets between variant and component.
+    #: Order is BuildTargets first so mashumaro picks the dataclass for dict input
+    #: (otherwise `list[str]` would match the dict's keys).
+    build_targets: BuildTargets | list[str] | None = None
     #: Generic config files for steps
     configs: list[ConfigFile] = field(default_factory=list)
     #: Platform specific components
@@ -96,6 +126,21 @@ class PlatformConfig(BaseConfigDictMixin):
     # This field is intended to keep track of where configuration was loaded from and
     # it is automatically added when configuration is loaded from file
     file: Path | None = None
+
+    @property
+    def variant_build_targets(self) -> list[str]:
+        return self._scoped_targets("variant")
+
+    @property
+    def component_build_targets(self) -> list[str]:
+        return self._scoped_targets("component")
+
+    def _scoped_targets(self, scope: str) -> list[str]:
+        if self.build_targets is None:
+            return []
+        if isinstance(self.build_targets, BuildTargets):
+            return self.build_targets.variant_targets if scope == "variant" else self.build_targets.component_targets
+        return list(self.build_targets)
 
 
 @dataclass

@@ -8,6 +8,7 @@ import pytest
 from tests.utils import write_file
 from yanga_core.commands.info import InfoCommand, InfoCommandConfig
 from yanga_core.commands.info_schema import SCHEMA_VERSION, InfoProject
+from yanga_core.domain.config import BuildTargets
 from yanga_core.domain.project_slurper import DEFAULT_EXCLUDE_DIRS
 
 INFO_COMMAND_FIXTURE_DIR = Path(__file__).parent / "data" / "info_command"
@@ -64,7 +65,8 @@ def test_clean_project_schema(tmp_path: Path, capsys: pytest.CaptureFixture[str]
     assert [p.name for p in info.platforms] == ["gtest"]
     gtest = info.platforms[0]
     assert gtest.build_types == ["Debug", "Release"]
-    assert gtest.build_targets == ["unit_tests"]
+    # Bare-list config form normalizes to generic on the wire.
+    assert gtest.build_targets == BuildTargets(generic=["unit_tests"])
     assert gtest.components == ["mock_lib"]
 
     assert len(info.variants) == 1
@@ -79,6 +81,57 @@ def test_clean_project_schema(tmp_path: Path, capsys: pytest.CaptureFixture[str]
     assert by_name["mock_lib"].path == "src/platforms/gtest/mock_lib"
 
     assert info.diagnostics == []
+
+
+def test_build_targets_split_form_preserves_structure(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The dataclass form is preserved verbatim on the wire."""
+    write_file(
+        tmp_path / "yanga.yaml",
+        _yanga_yaml("""
+            variants:
+              - name: V
+                components: [a]
+            platforms:
+              - name: host
+                build_targets:
+                  generic: [all]
+                  variant: [docs]
+                  component: [unit_tests]
+            components:
+              - name: a
+        """),
+    )
+
+    _, info, _ = _run_and_parse(tmp_path, capsys)
+
+    host = info.platforms[0]
+    assert host.build_targets == BuildTargets(generic=["all"], variant=["docs"], component=["unit_tests"])
+
+
+def test_build_targets_component_only_preserves_empty_keys(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """All three keys are always present in the wire dict, even when unset in the config."""
+    write_file(
+        tmp_path / "yanga.yaml",
+        _yanga_yaml("""
+            variants:
+              - name: V
+                components: [a]
+            platforms:
+              - name: host
+                build_targets:
+                  component: [unit_tests, coverage]
+            components:
+              - name: a
+        """),
+    )
+
+    _, info, payload = _run_and_parse(tmp_path, capsys)
+
+    host = info.platforms[0]
+    assert host.build_targets == BuildTargets(component=["unit_tests", "coverage"])
+    # All three keys are always emitted; the extension can rely on a stable shape.
+    assert '"generic": []' in payload
+    assert '"variant": []' in payload
 
 
 def test_three_source_component_union(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

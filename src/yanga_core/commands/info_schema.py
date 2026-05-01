@@ -1,14 +1,21 @@
-"""Typed schema for the v1 ``yanga info`` JSON output."""
+"""
+Typed schema for the ``yanga info`` JSON output.
+
+The version is a ``"major.minor"`` string. Major bumps signal breaking
+structural changes; minor bumps signal backwards-compatible additions
+(new fields, new enum values).
+"""
 
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from py_app_dev.core.config import BaseConfigDictMixin, BaseConfigJSONMixin
 
+from yanga_core.domain.config import BuildTargets, PlatformConfig
 from yanga_core.domain.project_slurper import DEFAULT_EXCLUDE_DIRS, ComponentFactory, YangaProjectSlurper
 from yanga_core.ini import YangaIni
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = "1.1"
 DEFAULT_CONFIGURATION_FILE_NAME = "yanga.yaml"
 TOP_LEVEL_CONFIG_FILE_NAMES = ("yanga.ini", "pyproject.toml")
 
@@ -33,7 +40,10 @@ class InfoComponent(BaseConfigDictMixin):
 class InfoPlatform(BaseConfigDictMixin):
     name: str
     build_types: list[str] = field(default_factory=list)
-    build_targets: list[str] = field(default_factory=list)
+    #: Scoped build targets. ``generic`` applies to both variant and component
+    #: scopes; ``variant`` and ``component`` are scope-only. Always emitted as a
+    #: dict with all three keys (empty lists when unset).
+    build_targets: BuildTargets = field(default_factory=BuildTargets)
     components: list[str] = field(default_factory=list)
 
 
@@ -46,7 +56,7 @@ class InfoVariant(BaseConfigDictMixin):
 
 @dataclass
 class InfoProject(BaseConfigJSONMixin):
-    schema_version: int
+    schema_version: str
     project_dir: str
     config_files: list[str] = field(default_factory=list)
     watch_patterns: list[str] = field(default_factory=list)
@@ -102,11 +112,29 @@ def _platforms(slurper: YangaProjectSlurper) -> list[InfoPlatform]:
         InfoPlatform(
             name=p.name,
             build_types=list(p.build_types or []),
-            build_targets=list(p.build_targets or []),
+            build_targets=_normalize_build_targets(p),
             components=list(p.components or []),
         )
         for p in slurper.platforms
     ]
+
+
+def _normalize_build_targets(p: PlatformConfig) -> BuildTargets:
+    """
+    Bring both config forms onto the same wire shape.
+
+    Bare-list configs (`build_targets: [a, b, c]`) preserve their original
+    "applies to both scopes" semantics by mapping into `generic`.
+    """
+    if p.build_targets is None:
+        return BuildTargets()
+    if isinstance(p.build_targets, BuildTargets):
+        return BuildTargets(
+            generic=list(p.build_targets.generic),
+            variant=list(p.build_targets.variant),
+            component=list(p.build_targets.component),
+        )
+    return BuildTargets(generic=list(p.build_targets))
 
 
 def _variants(slurper: YangaProjectSlurper) -> list[InfoVariant]:
