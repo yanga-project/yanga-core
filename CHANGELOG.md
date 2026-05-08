@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.0 (2026-05-08)
+
+### Features
+
+- Add argument for pristine runs ([`a84b1f8`](https://github.com/yanga-project/yanga-core/commit/a84b1f8babca1ce30b43cfa0e0ec55a68dfee220))
+
 ## v0.3.0 (2026-05-01)
 
 ### Features
