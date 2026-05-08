@@ -1,3 +1,4 @@
+import shutil
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,6 +11,7 @@ from pypeline.pypeline import PipelineScheduler, PipelineStepsExecutor
 from yanga_core.domain.config import PlatformConfig, VariantConfig
 from yanga_core.domain.execution_context import ExecutionContext, UserRequest, UserRequestScope
 from yanga_core.domain.project_slurper import YangaProjectSlurper
+from yanga_core.domain.spl_paths import SPLPaths
 from yanga_core.ini import YangaIni
 
 from .base import CommandConfigBase, create_config, prompt_user_to_select_option
@@ -63,6 +65,13 @@ class RunCommandConfig(CommandConfigBase):
             "action": "store_true",
         },
     )
+    pristine: bool = field(
+        default=False,
+        metadata={
+            "help": "Recursively delete the variant build directory before running. Works even if cmake configure is currently broken (e.g. variant rename, schema change).",
+            "action": "store_true",
+        },
+    )
 
 
 class RunCommand(Command):
@@ -77,6 +86,8 @@ class RunCommand(Command):
         return 0
 
     def do_run(self, config: RunCommandConfig) -> int:
+        if config.pristine:
+            self._run_pristine(config)
         project_slurper = self.create_project_slurper(config.project_dir)
         if config.print:
             project_slurper.print_project_info()
@@ -110,6 +121,21 @@ class RunCommand(Command):
             force_run=config.force_run,
         )
         return 0
+
+    @staticmethod
+    def _run_pristine(config: RunCommandConfig) -> None:
+        ini_config = YangaIni.from_toml_or_ini(config.project_dir / "yanga.ini", config.project_dir / "pyproject.toml")
+        spl_paths = SPLPaths(config.project_dir, config.variant_name, config.platform, config.build_type, create_yanga_build_dir=ini_config.create_yanga_build_dir)
+        target_dir = spl_paths.variant_build_dir.resolve(strict=False)
+        yanga_build_root = spl_paths.build_dir.resolve(strict=False)
+        if target_dir != yanga_build_root and not target_dir.is_relative_to(yanga_build_root):
+            raise UserNotificationException(f"Refusing to wipe {target_dir}: it escapes yanga build root {yanga_build_root}.")
+        if not target_dir.exists():
+            return
+        try:
+            shutil.rmtree(target_dir)
+        except OSError as e:
+            raise UserNotificationException(f"Failed to wipe {target_dir}: {e}") from e
 
     @staticmethod
     def create_project_slurper(project_dir: Path) -> YangaProjectSlurper:
