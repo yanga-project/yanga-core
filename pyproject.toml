@@ -42,7 +42,7 @@ dev = [
   "pytest==9.*",
   "coverage",
   "pytest-cov==7.*",
-  "pypeline-runner>=1,<2",
+  "pypeline-runner>=1.32,<2",
   "pre-commit>=4,<5",
   "ruff>=0,<1",
   # docs

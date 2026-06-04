@@ -1,13 +1,14 @@
 from pathlib import Path
 from typing import Any
 
+from pypeline.steps.scoop_install import ScoopInstall as PypelineScoopInstallStep
+from pypeline.steps.scoop_install import ScoopManifest
+
 from yanga_core.domain.config_utils import collect_configs_by_id, parse_config
 from yanga_core.domain.execution_context import ExecutionContext
-from yanga_core.steps.scoop_install_base import ScoopInstall as BaseScoopInstall
-from yanga_core.steps.scoop_install_base import ScoopManifest
 
 
-class ScoopInstall(BaseScoopInstall[ExecutionContext]):
+class ScoopInstall(PypelineScoopInstallStep[ExecutionContext]):
     def __init__(self, execution_context: ExecutionContext, group_name: str, config: dict[str, Any] | None = None) -> None:
         super().__init__(execution_context, group_name, config)
         self.artifacts_locator = execution_context.spl_paths

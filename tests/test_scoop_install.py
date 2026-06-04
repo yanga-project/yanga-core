@@ -2,11 +2,11 @@ import json
 from pathlib import Path
 
 from py_app_dev.core.scoop_wrapper import ScoopFileElement
+from pypeline.steps.scoop_install import ScoopManifest
 
 from yanga_core.domain.config import ConfigFile, PlatformConfig, VariantConfig
 from yanga_core.domain.execution_context import ExecutionContext, UserVariantRequest
 from yanga_core.steps.scoop_install import ScoopInstall
-from yanga_core.steps.scoop_install_base import ScoopManifest
 
 
 def test_scoop_install_with_global_scoopfile_and_platform_scoop_manifest(tmp_path: Path) -> None:
