@@ -1,11 +1,13 @@
 import sys
 from collections.abc import Callable
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import yaml
+from mashumaro.exceptions import InvalidFieldValue, MissingField
 from py_app_dev.core.config import BaseConfigDictMixin
 from py_app_dev.core.exceptions import UserNotificationException
 from py_app_dev.core.pipeline import PipelineConfig as GenericPipelineConfig
@@ -19,15 +21,135 @@ else:
     from typing_extensions import Self
 
 
+# Source-location provenance. See docs/explanation/design-decisions.md
+# ("Configuration Provenance") for what it buys and how the pieces fit.
+
+#: Internal wire key the loader's position is injected under. Deliberately not
+#: ``location`` so a user's ``location:`` yaml key can't be routed into provenance
+#: (it stays an ignored unknown key). The Python field is still named ``location``.
+_LOCATION_KEY = "_yanga_location"
+
+
 @dataclass
-class ConfigFile(BaseConfigDictMixin):
+class SourceLocation(BaseConfigDictMixin):
+    """Where a config element was parsed from (1-based line/column)."""
+
+    file: Path | None = None
+    line: int | None = None
+    column: int | None = None
+
+    def __str__(self) -> str:
+        return f"{self.file}:{self.line}:{self.column}"
+
+
+#: Per-parse stack of locations for error messages only; the top is the element
+#: under construction. A stack (not a single slot) is needed so a parent scalar that
+#: fails after a nested child still localizes to the parent. ContextVar → thread-safe
+#: under the parallel slurp.
+_parsing_stack: ContextVar[list[SourceLocation | None] | None] = ContextVar("_yanga_parsing_stack", default=None)
+
+
+@dataclass
+class ConfigElement(BaseConfigDictMixin):
+    """Base for every locatable config element; fills ``location`` on parse, strips it on export."""
+
+    # compare=False so equal elements from different files still dedup on merge;
+    # kw_only so subclasses keep mandatory positional fields. The wire alias keeps a
+    # user's ``location:`` yaml key from hijacking provenance (failure mode A); a
+    # subclass redeclaring ``location`` is rejected by __init_subclass__ (mode B).
+    location: SourceLocation | None = field(default=None, kw_only=True, compare=False, repr=False, metadata={"alias": _LOCATION_KEY})
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if "location" in cls.__dict__.get("__annotations__", {}):
+            raise TypeError(f"{cls.__name__} must not declare a 'location' field — it is reserved by ConfigElement for source provenance.")
+
+    @classmethod
+    def __pre_deserialize__(cls, d: dict[str, Any]) -> dict[str, Any]:
+        # Push for error localization, then lift the loader's position attribute into
+        # the aliased key so mashumaro fills the field (matching nested/list natively).
+        position = getattr(d, "location", None)
+        stack = _parsing_stack.get()
+        if stack is not None:
+            stack.append(position)  # push None too, to stay balanced with the pop
+        if position is not None and _LOCATION_KEY not in d:
+            return {**d, _LOCATION_KEY: position.to_dict()}
+        return d
+
+    @classmethod
+    def __post_deserialize__(cls, obj: Self) -> Self:
+        stack = _parsing_stack.get()
+        if stack:
+            stack.pop()  # constructed OK — drop so the top tracks the live element
+        return obj
+
+    def __post_serialize__(self, d: dict[str, Any]) -> dict[str, Any]:
+        d.pop("location", None)
+        return d
+
+
+class _PositionedDict(dict[str, Any]):
+    """A dict carrying its YAML position as an attribute (never a key, so ``content:`` payloads stay byte-clean)."""
+
+    location: SourceLocation | None = None
+
+
+def _load_positioned(path: Path) -> Any:
+    """Parse YAML, stamping each mapping with its file:line:column."""
+
+    # Function-local loader so the constructor never mutates the global SafeLoader
+    # (keeps the parallel slurp safe).
+    class _Loader(yaml.SafeLoader):
+        pass
+
+    def construct_map(loader: yaml.SafeLoader, node: yaml.MappingNode) -> Any:
+        data = _PositionedDict()
+        yield data
+        data.update(loader.construct_mapping(node))
+        data.location = SourceLocation(path, node.start_mark.line + 1, node.start_mark.column + 1)
+
+    _Loader.add_constructor("tag:yaml.org,2002:map", construct_map)
+    return yaml.load(path.read_text(), Loader=_Loader)  # noqa: S506 - _Loader subclasses SafeLoader
+
+
+_T = TypeVar("_T", bound=ConfigElement)
+
+
+def parse(cls: type[_T], path: Path) -> _T:
+    """Load a file into a located config element, localizing both YAML and schema failures."""
+    try:
+        raw = _load_positioned(path)
+    except (ScannerError, ParserError) as e:
+        raise UserNotificationException(f"Failed to parse configuration file '{path}'.\n{e}") from e
+    token = _parsing_stack.set([])
+    try:
+        return cls.from_dict(raw)
+    except (InvalidFieldValue, MissingField) as e:
+        stack = _parsing_stack.get() or []
+        location = next((entry for entry in reversed(stack) if entry is not None), None)
+        raise UserNotificationException(_format_deserialize_error(path, location, e)) from e
+    finally:
+        _parsing_stack.reset(token)
+
+
+def export(element: ConfigElement) -> dict[str, Any]:
+    """Serialize a config element back to a dict, with provenance stripped."""
+    return element.to_dict()
+
+
+def _format_deserialize_error(path: Path, location: SourceLocation | None, error: Exception) -> str:
+    """Turn a mashumaro schema error into a file:line:col message (file alone when location is unknown)."""
+    where = str(location) if location is not None else str(path)
+    return f"Failed to parse configuration at {where}: {error}"
+
+
+@dataclass
+class ConfigFile(ConfigElement):
     """Generic configuration file reference for steps to consume."""
 
     id: str
     file: Path | None = None
     content: dict[str, Any] | None = None
-    # Populated at runtime by collect_configs_by_id; not part of the yaml schema
-    source_file: Path | None = None
 
     def __post_init__(self) -> None:
         if self.file is None and self.content is None:
@@ -54,14 +176,14 @@ class VarsConfig:
 
 
 @dataclass
-class MockingConfiguration(BaseConfigDictMixin):
+class MockingConfiguration(ConfigElement):
     enabled: bool | None = None
     strict: bool | None = None
     exclude_symbol_patterns: list[str] | None = None
 
 
 @dataclass
-class TestingConfiguration(BaseConfigDictMixin):
+class TestingConfiguration(ConfigElement):
     #: Component test sources
     sources: list[str] = field(default_factory=list)
     #: Mocking configuration
@@ -69,7 +191,7 @@ class TestingConfiguration(BaseConfigDictMixin):
 
 
 @dataclass
-class DocsConfiguration(BaseConfigDictMixin):
+class DocsConfiguration(ConfigElement):
     #: Component documentation sources
     sources: list[str] = field(default_factory=list)
     #: Do not generate documentation for the productive code.
@@ -78,7 +200,7 @@ class DocsConfiguration(BaseConfigDictMixin):
 
 
 @dataclass
-class BuildTargets(BaseConfigDictMixin):
+class BuildTargets(ConfigElement):
     """
     Scoped build targets for a platform.
 
@@ -105,7 +227,7 @@ def _dedup_preserve_order(*lists: list[str]) -> list[str]:
 
 
 @dataclass
-class PlatformConfig(BaseConfigDictMixin):
+class PlatformConfig(ConfigElement):
     #: Platform name
     name: str
     #: Description
@@ -144,7 +266,7 @@ class PlatformConfig(BaseConfigDictMixin):
 
 
 @dataclass
-class VariantPlatformsConfig(BaseConfigDictMixin):
+class VariantPlatformsConfig(ConfigElement):
     """Platform specific configuration, used in case the variant needs to defines specific settings for some platforms."""
 
     #: Components
@@ -154,7 +276,7 @@ class VariantPlatformsConfig(BaseConfigDictMixin):
 
 
 @dataclass
-class VariantConfig(BaseConfigDictMixin):
+class VariantConfig(ConfigElement):
     #: Variant name
     name: str
     #: Description
@@ -204,7 +326,7 @@ class IncludeDirectoryScope(StringableEnum):
 
 
 @dataclass
-class IncludeDirectory(BaseConfigDictMixin):
+class IncludeDirectory(ConfigElement):
     #: Include directory path
     path: str
     #: Include directory scope
@@ -212,7 +334,7 @@ class IncludeDirectory(BaseConfigDictMixin):
 
 
 @dataclass
-class ComponentConfig(BaseConfigDictMixin):
+class ComponentConfig(ConfigElement):
     #: Component name
     name: str
     #: Description
@@ -252,7 +374,7 @@ class ComponentConfig(BaseConfigDictMixin):
 
 
 @dataclass
-class YangaUserConfig(BaseConfigDictMixin):
+class YangaUserConfig(ConfigElement):
     #: Pipeline steps to execute
     pipeline: PipelineConfig | None = None
     #: Supported platforms to build for
@@ -264,24 +386,12 @@ class YangaUserConfig(BaseConfigDictMixin):
     #: Generic config files for steps
     configs: list[ConfigFile] = field(default_factory=list)
 
-    # This field is intended to keep track of where the configuration was loaded from and
-    # it is automatically added when the configuration is loaded from the file
+    # Convenience reference to the loaded file (equals ``location.file``); kept for
+    # the many readers that expect ``.file`` on a user config.
     file: Path | None = None
 
     @classmethod
     def from_file(cls, config_file: Path) -> "YangaUserConfig":
-        config_dict = cls.parse_to_dict(config_file)
-        return cls.from_dict(config_dict)
-
-    @staticmethod
-    def parse_to_dict(config_file: Path) -> dict[str, Any]:
-        try:
-            with open(config_file) as fs:
-                config_dict = yaml.safe_load(fs)
-                # Add file name to config to keep track of where configuration was loaded from
-                config_dict["file"] = config_file
-            return config_dict
-        except ScannerError as e:
-            raise UserNotificationException(f"Failed scanning configuration file '{config_file}'. \nError: {e}") from e
-        except ParserError as e:
-            raise UserNotificationException(f"Failed parsing configuration file '{config_file}'. \nError: {e}") from e
+        config = parse(cls, config_file)
+        config.file = config_file
+        return config

@@ -25,6 +25,13 @@ class ScoopInstall(PypelineScoopInstallStep[ExecutionContext]):
 
         return collected_manifest
 
+    def get_inputs(self) -> list[Path]:
+        # Scoped fragments live inline in their yanga.yaml; include each so editing
+        # a dependency there invalidates this step's cache (the base only tracks the
+        # root manifest).
+        extra = [cfg.location.file for cfg in collect_configs_by_id(self.execution_context, "scoop") if cfg.location and cfg.location.file]
+        return list(dict.fromkeys(super().get_inputs() + extra))
+
     @property
     def output_dir(self) -> Path:
         return self.artifacts_locator.variant_build_dir

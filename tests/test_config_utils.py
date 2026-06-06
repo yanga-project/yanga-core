@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from yanga_core.domain.config import ConfigFile, PlatformConfig, VariantConfig, VariantPlatformsConfig
+from yanga_core.domain.config import ConfigFile, PlatformConfig, SourceLocation, VariantConfig, VariantPlatformsConfig
 from yanga_core.domain.config_utils import collect_configs_by_id, parse_config
 from yanga_core.domain.execution_context import ExecutionContext, UserVariantRequest
 
@@ -128,12 +128,14 @@ def test_parse_config_prefers_content_over_file(tmp_path: Path) -> None:
 
 def test_collect_configs_from_project(tmp_path: Path) -> None:
     yaml_file = tmp_path / "yanga.yaml"
-    root_cfg = ConfigFile(id="west", content={"key": "root"}, source_file=yaml_file)
+    root_cfg = ConfigFile(id="west", content={"key": "root"}, location=SourceLocation(file=yaml_file))
     context = ExecutionContext(project_root_dir=tmp_path, variant_name="test", user_request=UserVariantRequest("test"), project_configs=[root_cfg])
     configs = collect_configs_by_id(context, "west")
     assert len(configs) == 1
     assert configs[0].content == {"key": "root"}
-    assert configs[0].source_file == yaml_file
+    location = configs[0].location
+    assert location is not None
+    assert location.file == yaml_file
 
 
 def test_collect_configs_order_project_first(tmp_path: Path) -> None:
@@ -155,31 +157,39 @@ def test_collect_configs_order_project_first(tmp_path: Path) -> None:
     assert configs[2].content == {"key": "platform"}
 
 
-# --- source_file stamping tests ---
+# --- location is set at parse time and carried through collection ---
+# collect_configs_by_id no longer stamps a source file; each ConfigFile already
+# carries its own `location` from when its yanga.yaml was parsed. These verify the
+# collection passes that provenance through unchanged, including the former
+# variant-platform special case (which needed no .file before).
 
 
-def test_collect_configs_stamps_source_file_from_variant(tmp_path: Path) -> None:
+def test_collect_configs_preserves_location_from_variant(tmp_path: Path) -> None:
     yaml_file = tmp_path / "yanga.yaml"
-    variant = VariantConfig(name="test", configs=[ConfigFile(id="west", content={"k": "v"})], file=yaml_file)
+    variant = VariantConfig(name="test", configs=[ConfigFile(id="west", content={"k": "v"}, location=SourceLocation(file=yaml_file))], file=yaml_file)
     context = ExecutionContext(project_root_dir=tmp_path, variant_name="test", user_request=UserVariantRequest("test"), variant=variant)
     configs = collect_configs_by_id(context, "west")
-    assert configs[0].source_file == yaml_file
+    location = configs[0].location
+    assert location is not None
+    assert location.file == yaml_file
 
 
-def test_collect_configs_stamps_source_file_from_platform(tmp_path: Path) -> None:
+def test_collect_configs_preserves_location_from_platform(tmp_path: Path) -> None:
     yaml_file = tmp_path / "platforms" / "yanga.yaml"
-    platform = PlatformConfig(name="linux", configs=[ConfigFile(id="poks", content={"k": "v"})], file=yaml_file)
+    platform = PlatformConfig(name="linux", configs=[ConfigFile(id="poks", content={"k": "v"}, location=SourceLocation(file=yaml_file))], file=yaml_file)
     context = ExecutionContext(project_root_dir=tmp_path, variant_name="test", user_request=UserVariantRequest("test"), platform=platform)
     configs = collect_configs_by_id(context, "poks")
-    assert configs[0].source_file == yaml_file
+    location = configs[0].location
+    assert location is not None
+    assert location.file == yaml_file
 
 
-def test_collect_configs_stamps_source_file_from_variant_platform(tmp_path: Path) -> None:
+def test_collect_configs_preserves_location_from_variant_platform(tmp_path: Path) -> None:
     yaml_file = tmp_path / "yanga.yaml"
     platform = PlatformConfig(name="linux")
     variant = VariantConfig(
         name="test",
-        platforms={"linux": VariantPlatformsConfig(configs=[ConfigFile(id="west", content={"k": "v"})])},
+        platforms={"linux": VariantPlatformsConfig(configs=[ConfigFile(id="west", content={"k": "v"}, location=SourceLocation(file=yaml_file))])},
         file=yaml_file,
     )
     context = ExecutionContext(
@@ -190,7 +200,9 @@ def test_collect_configs_stamps_source_file_from_variant_platform(tmp_path: Path
         platform=platform,
     )
     configs = collect_configs_by_id(context, "west")
-    assert configs[0].source_file == yaml_file
+    location = configs[0].location
+    assert location is not None
+    assert location.file == yaml_file
 
 
 # --- parse_config resolution priority tests ---
@@ -203,7 +215,7 @@ def test_parse_config_resolves_relative_to_source_file_first(tmp_path: Path) -> 
     config_file.write_text('{"loaded": "from_source_dir"}')
     yaml_file = subdir / "yanga.yaml"
 
-    config = ConfigFile(id="poks", file=Path("poks.json"), source_file=yaml_file)
+    config = ConfigFile(id="poks", file=Path("poks.json"), location=SourceLocation(file=yaml_file))
     result = parse_config(config, MockConfig, base_path=tmp_path)
     assert result.data == {"loaded": "from_source_dir"}
 
@@ -213,7 +225,7 @@ def test_parse_config_falls_back_to_base_path_when_not_in_source_dir(tmp_path: P
     config_file.write_text('{"loaded": "from_root"}')
     yaml_file = tmp_path / "platforms" / "nrf52" / "yanga.yaml"
 
-    config = ConfigFile(id="poks", file=Path("poks.json"), source_file=yaml_file)
+    config = ConfigFile(id="poks", file=Path("poks.json"), location=SourceLocation(file=yaml_file))
     result = parse_config(config, MockConfig, base_path=tmp_path)
     assert result.data == {"loaded": "from_root"}
 
@@ -223,6 +235,6 @@ def test_parse_config_absolute_file_unaffected_by_source_file(tmp_path: Path) ->
     config_file.write_text('{"loaded": "absolute"}')
     yaml_file = tmp_path / "other" / "yanga.yaml"
 
-    config = ConfigFile(id="test", file=config_file, source_file=yaml_file)
+    config = ConfigFile(id="test", file=config_file, location=SourceLocation(file=yaml_file))
     result = parse_config(config, MockConfig)
     assert result.data == {"loaded": "absolute"}

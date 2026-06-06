@@ -192,9 +192,7 @@ class YangaProjectSlurper:
         """Collect all top level configuration files from the user configurations."""
         configs: list[ConfigFile] = []
         for user_config in self.user_configs:
-            for cfg in user_config.configs:
-                cfg.source_file = user_config.file
-                configs.append(cfg)
+            configs.extend(user_config.configs)
         return configs
 
     def get_variant_config(self, variant_name: str) -> VariantConfig:

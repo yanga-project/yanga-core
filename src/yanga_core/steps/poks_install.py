@@ -21,6 +21,12 @@ class PoksInstall(BasePoksInstall[ExecutionContext]):
             self._merge_apps(collected, manifest.apps)
         return collected
 
+    def get_inputs(self) -> list[Path]:
+        # Include each scoped fragment's yanga.yaml so editing a dependency there
+        # invalidates this step's cache (the base only tracks the root config).
+        extra = [cfg.location.file for cfg in collect_configs_by_id(self.execution_context, "poks") if cfg.location and cfg.location.file]
+        return list(dict.fromkeys(super().get_inputs() + extra))
+
     @property
     def output_dir(self) -> Path:
         return self.artifacts_locator.variant_build_dir

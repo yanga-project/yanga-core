@@ -19,6 +19,12 @@ class WestInstall(PypelineWestInstallStep[ExecutionContext]):
             manifests.append(parse_config(cfg, WestManifestFile, self.project_root_dir))
         return manifests
 
+    def get_inputs(self) -> list[Path]:
+        # Include each scoped fragment's yanga.yaml so editing a manifest entry there
+        # invalidates this step's cache (the base only tracks declared manifest files).
+        extra = [cfg.location.file for cfg in collect_configs_by_id(self.execution_context, "west") if cfg.location and cfg.location.file]
+        return list(dict.fromkeys(super().get_inputs() + extra))
+
     def _resolve_workspace_dir(self) -> Path:
         """Resolve workspace directory from data registry (priority) or config."""
         # Check data registry first (highest priority)
