@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0 (2026-06-10)
+
+### Features
+
+- Track configuration provenance for dependency management ([`f52181e`](https://github.com/yanga-project/yanga-core/commit/f52181e3625dac80720fc1b7ef79e0cc8bf875d8))
+
 ## v0.4.0 (2026-05-08)
 
 ### Features
