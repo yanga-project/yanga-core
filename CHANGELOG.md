@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.0 (2026-06-13)
+
+### Features
+
+- Adopt py-app-dev config provenance and multi-source install api ([`ec2f15e`](https://github.com/yanga-project/yanga-core/commit/ec2f15eebb7c9385cd5b9a8dd9bc5d53e9889216))
+
 ## v0.5.0 (2026-06-10)
 
 ### Features
