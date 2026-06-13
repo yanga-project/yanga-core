@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 from pypeline.steps.scoop_install import ScoopInstall as PypelineScoopInstallStep
-from pypeline.steps.scoop_install import ScoopManifest
+from pypeline.steps.scoop_install import ScoopManifest, ScoopManifestFile
 
 from yanga_core.domain.config_utils import collect_configs_by_id, parse_config
 from yanga_core.domain.execution_context import ExecutionContext
@@ -13,24 +13,15 @@ class ScoopInstall(PypelineScoopInstallStep[ExecutionContext]):
         super().__init__(execution_context, group_name, config)
         self.artifacts_locator = execution_context.spl_paths
 
-    def _collect_dependencies(self) -> ScoopManifest:
-        collected_manifest = super()._collect_dependencies()
-
-        # Collect configs with id="scoop" from variant, platform, variant-platform
-        configs = collect_configs_by_id(self.execution_context, "scoop")
-        for cfg in configs:
+    def _collect_manifests(self) -> list[ScoopManifestFile]:
+        # Append scoped scoop fragments (variant/platform/variant-platform yanga.yaml) after the
+        # base sources; a later, more specific scope overrides an earlier one (merge is last-wins).
+        # Each carrier keeps its declaring file so the base get_inputs tracks edits to it.
+        manifests = super()._collect_manifests()
+        for cfg in collect_configs_by_id(self.execution_context, "scoop"):
             manifest = parse_config(cfg, ScoopManifest, self.project_root_dir)
-            self._merge_buckets(collected_manifest, manifest.buckets)
-            self._merge_apps(collected_manifest, manifest.apps)
-
-        return collected_manifest
-
-    def get_inputs(self) -> list[Path]:
-        # Scoped fragments live inline in their yanga.yaml; include each so editing
-        # a dependency there invalidates this step's cache (the base only tracks the
-        # root manifest).
-        extra = [cfg.location.file for cfg in collect_configs_by_id(self.execution_context, "scoop") if cfg.location and cfg.location.file]
-        return list(dict.fromkeys(super().get_inputs() + extra))
+            manifests.append(ScoopManifestFile(payload=manifest, file=cfg.location.file if cfg.location else None))
+        return manifests
 
     @property
     def output_dir(self) -> Path:

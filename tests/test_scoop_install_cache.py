@@ -27,7 +27,7 @@ platforms:
           buckets:
             - {{name: main, source: https://github.com/ScoopInstaller/Main}}
           apps:
-            - {{name: git, version: "{git_version}"}}
+            - {{name: git, source: main, version: "{git_version}"}}
 """
     )
 
@@ -58,9 +58,9 @@ platforms:
   - name: p
     configs:
       - id: scoop
-        content: {apps: [{name: git}]}
+        content: {apps: [{name: git, source: main}]}
       - id: scoop
-        content: {apps: [{name: ninja}]}
+        content: {apps: [{name: ninja, source: main}]}
 """
     )
     step = _build_step(tmp_path, yaml_file)
@@ -91,7 +91,7 @@ def test_root_and_platform_files_merge_with_correct_provenance(tmp_path: Path) -
     Two real files merge with each fragment keeping its own provenance.
 
     A scoop fragment in the root yanga.yaml and another in a separate platform
-    yanga.yaml are merged (union, root wins conflicts); each collected config keeps
+    yanga.yaml are merged (union, platform wins conflicts (last-wins)); each collected config keeps
     the file it was declared in.
     """
     root = tmp_path / "yanga.yaml"
@@ -114,7 +114,7 @@ def test_root_and_platform_files_merge_with_correct_provenance(tmp_path: Path) -
         "        content:\n"
         "          apps:\n"
         "            - {name: ninja, source: main}\n"
-        '            - {name: git, source: main, version: "2.0"}\n'  # conflicts with root -> root wins
+        '            - {name: git, source: main, version: "2.0"}\n'  # conflicts with root -> platform wins (last-wins)
     )
 
     root_config = YangaUserConfig.from_file(root)
@@ -135,7 +135,7 @@ def test_root_and_platform_files_merge_with_correct_provenance(tmp_path: Path) -
     assert {loc.file for loc in locations if loc is not None} == {root, platform_file}
     assert set(step.get_inputs()) >= {root, platform_file}
 
-    # Merge: union of both files, root wins the `git` conflict (first-wins).
-    manifest = step._collect_dependencies()
-    assert {app.name: app.version for app in manifest.apps} == {"git": "1.0", "ninja": None}
+    # Merge: union of both files, platform wins the git conflict (last-wins).
+    manifest = step._merge_manifests()
+    assert {app.name: app.version for app in manifest.apps} == {"git": "2.0", "ninja": None}
     assert {bucket.name for bucket in manifest.buckets} == {"main"}

@@ -3,9 +3,41 @@ from pathlib import Path
 
 from poks.domain import PoksApp, PoksBucket, PoksConfig
 
-from yanga_core.domain.config import ConfigFile, PlatformConfig, VariantConfig
+from yanga_core.domain.config import ConfigFile, PlatformConfig, VariantConfig, YangaUserConfig
 from yanga_core.domain.execution_context import ExecutionContext, UserVariantRequest
 from yanga_core.steps.poks_install import PoksInstall
+
+
+def test_poks_install_honors_root_poks_json(tmp_path: Path) -> None:
+    # The base now contributes the project-root poks.json; a scoped platform fragment merges on top.
+    (tmp_path / "poks.json").write_text(
+        json.dumps(
+            {
+                "buckets": [{"name": "main", "url": "https://github.com/example/main"}],
+                "apps": [{"name": "root_app", "version": "1.0", "bucket": "main"}],
+            }
+        )
+    )
+    platform = PlatformConfig(
+        name="test_platform",
+        configs=[ConfigFile(id="poks", content=PoksConfig(buckets=[], apps=[PoksApp(name="platform_app", version="2.0", bucket="main")]).to_dict())],
+    )
+    exec_context = ExecutionContext(project_root_dir=tmp_path, variant_name="v", user_request=UserVariantRequest("v"), platform=platform)
+
+    collected = PoksInstall(exec_context, "install")._merge_manifests()
+
+    assert {app.name for app in collected.apps} == {"root_app", "platform_app"}
+
+
+def test_poks_get_inputs_includes_scoped_fragment_file(tmp_path: Path) -> None:
+    yaml_file = tmp_path / "yanga.yaml"
+    yaml_file.write_text('platforms:\n  - name: p\n    configs:\n      - id: poks\n        content: {apps: [{name: cmake, version: "3.28", bucket: main}]}\n')
+    user_config = YangaUserConfig.from_file(yaml_file)
+    context = ExecutionContext(project_root_dir=tmp_path, variant_name="v", user_request=UserVariantRequest("v"), platform=user_config.platforms[0])
+
+    step = PoksInstall(context, "install")
+
+    assert yaml_file in step.get_inputs()
 
 
 def test_poks_install_with_platform_dependencies(tmp_path: Path) -> None:
@@ -30,7 +62,7 @@ def test_poks_install_with_platform_dependencies(tmp_path: Path) -> None:
     )
 
     poks_install = PoksInstall(exec_context, "install")
-    collected = poks_install._collect_dependencies()
+    collected = poks_install._merge_manifests()
 
     assert len(collected.buckets) == 1
     assert collected.buckets[0].name == "main"
@@ -64,7 +96,7 @@ def test_poks_install_with_variant_dependencies(tmp_path: Path) -> None:
     )
 
     poks_install = PoksInstall(exec_context, "install")
-    collected = poks_install._collect_dependencies()
+    collected = poks_install._merge_manifests()
 
     assert len(collected.buckets) == 1
     assert collected.buckets[0].name == "extras"
@@ -110,7 +142,7 @@ def test_poks_install_merges_platform_and_variant_dependencies(tmp_path: Path) -
     )
 
     poks_install = PoksInstall(exec_context, "install")
-    collected = poks_install._collect_dependencies()
+    collected = poks_install._merge_manifests()
 
     assert len(collected.buckets) == 2
     assert {b.name for b in collected.buckets} == {"main", "extras"}
@@ -143,7 +175,7 @@ def test_poks_install_with_root_and_platform_configs(tmp_path: Path) -> None:
         platform=PlatformConfig(name="test_platform", configs=[platform_cfg]),
     )
 
-    collected = PoksInstall(exec_context, "install")._collect_dependencies()
+    collected = PoksInstall(exec_context, "install")._merge_manifests()
 
     assert {b.name for b in collected.buckets} == {"global_bucket"}
     assert {a.name for a in collected.apps} == {"global_app", "platform_app"}
@@ -169,7 +201,7 @@ def test_poks_install_merges_buckets_with_conflicts(tmp_path: Path) -> None:
             ConfigFile(
                 id="poks",
                 content=PoksConfig(
-                    buckets=[PoksBucket(name="main", url="https://github.com/different/main")],
+                    buckets=[PoksBucket(name="main", url="https://github.com/example/main")],
                     apps=[],
                 ).to_dict(),
             )
@@ -185,12 +217,12 @@ def test_poks_install_merges_buckets_with_conflicts(tmp_path: Path) -> None:
     )
 
     poks_install = PoksInstall(exec_context, "install")
-    collected = poks_install._collect_dependencies()
+    collected = poks_install._merge_manifests()
 
-    # First definition wins (variant is collected before platform)
+    # Last definition wins (platform is collected after variant)
     assert len(collected.buckets) == 1
     assert collected.buckets[0].name == "main"
-    assert collected.buckets[0].url == "https://github.com/different/main"
+    assert collected.buckets[0].url == "https://github.com/example/main"
 
 
 def test_poks_install_generates_config(tmp_path: Path) -> None:
@@ -215,7 +247,7 @@ def test_poks_install_generates_config(tmp_path: Path) -> None:
     )
 
     poks_install = PoksInstall(exec_context, "install")
-    config = poks_install._collect_dependencies()
+    config = poks_install._merge_manifests()
     poks_install._generate_poks_config(config)
 
     assert poks_install._output_config_file.exists()
@@ -254,7 +286,7 @@ def test_poks_install_variant_specific_directories(tmp_path: Path) -> None:
         )
 
         poks_install = PoksInstall(exec_context, "install")
-        config = poks_install._collect_dependencies()
+        config = poks_install._merge_manifests()
         poks_install._generate_poks_config(config)
 
         expected_file = tmp_path / ".yanga" / "build" / variant_name / "test_platform" / "poks.json"

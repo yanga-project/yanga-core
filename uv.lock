@@ -1191,16 +1191,17 @@ wheels = [
 
 [[package]]
 name = "py-app-dev"
-version = "2.21.0"
+version = "2.22.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "loguru" },
     { name = "mashumaro" },
     { name = "psutil" },
+    { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/ea/af58a0fa0360bbc598e3976e721811ad2d9d1f91c31413a21537883af830/py_app_dev-2.21.0.tar.gz", hash = "sha256:c78fd4afd0fb381783a19af7bad1213c9afcc6b8f85fb9b50aae17d8e255e4c6", size = 21409, upload-time = "2026-02-27T10:43:38.259Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/8e/f8e12d7c0863dbf9ced1abe5ffdaa0917a0bb1b22b2f776222ae2d45d8ce/py_app_dev-2.22.0.tar.gz", hash = "sha256:1664b641d0690ebc8ad90033f8c8c123b9eb88a33429fa331b0f4e76329b8ae5", size = 24216, upload-time = "2026-06-12T19:36:02.184Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/f4/97727b0b3b944c08aecbb205acaab07ee2f0c8ee0c38bb68fabc57af634a/py_app_dev-2.21.0-py3-none-any.whl", hash = "sha256:581d33974b6029b32a6597be5ea43a2315a9071d15e44298f244ebc8f0495ee6", size = 25239, upload-time = "2026-02-27T10:43:36.859Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/72/2dd056161b8ddffb679559ffea28c2de098e1df129cbdd1a1d0b0de39411/py_app_dev-2.22.0-py3-none-any.whl", hash = "sha256:cfca68a270f119110060d9ad2095296db8697c87c88ada729e2cfadf369db432", size = 28161, upload-time = "2026-06-12T19:36:01.092Z" },
 ]
 
 [[package]]
@@ -1355,7 +1356,7 @@ wheels = [
 
 [[package]]
 name = "pypeline-runner"
-version = "1.32.0"
+version = "1.33.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "poks" },
@@ -1364,9 +1365,9 @@ dependencies = [
     { name = "typer" },
     { name = "west" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/39/e0/8bb44c0aebfd140326bbe04d16ff1b7d1b74dd58f980fc7b321bab8ee9df/pypeline_runner-1.32.0.tar.gz", hash = "sha256:4527a6f9e9e8cd75c4c82559f6702bffe0b31b3cece6ff198d936c3adb2a7287", size = 36291, upload-time = "2026-06-04T13:05:36.999Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/62/8e8212b0ad32189724e0ae1e4390f4b001c0de2c0aad6d0b55fa175d6c28/pypeline_runner-1.33.0.tar.gz", hash = "sha256:fb0544c7af9beecab46fb4afa7c826c8c49c2d4aebff81a95dca89c602ab18b5", size = 36934, upload-time = "2026-06-13T18:56:53.324Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/a1/7f7442f87656dbd907fd402b7f0f0f2c665af4788fde8f4116a17a61d9c0/pypeline_runner-1.32.0-py3-none-any.whl", hash = "sha256:07bf377ca7a0611236492945879a61eed18015e1a96dab3c585d9b1116cd0d13", size = 43958, upload-time = "2026-06-04T13:05:35.459Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/06/28223e203bf0e7eaeccb5069ba38cb01752df71958ed1924cd8554a88ec5/pypeline_runner-1.33.0-py3-none-any.whl", hash = "sha256:becab69f6fe2116be08d7c67f0379f8e414d715ef15927de6e69a9c7582cae29", size = 45002, upload-time = "2026-06-13T18:56:51.981Z" },
 ]
 
 [[package]]
@@ -2014,6 +2015,7 @@ dependencies = [
     { name = "mashumaro" },
     { name = "pick" },
     { name = "py-app-dev" },
+    { name = "pypeline-runner" },
     { name = "typer" },
 ]
 
@@ -2023,7 +2025,6 @@ dev = [
     { name = "furo" },
     { name = "myst-parser" },
     { name = "pre-commit" },
-    { name = "pypeline-runner" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
@@ -2041,7 +2042,8 @@ requires-dist = [
     { name = "kspl", specifier = ">=1,<2" },
     { name = "mashumaro", specifier = ">=3.13,<4" },
     { name = "pick", specifier = ">=2.2,<3" },
-    { name = "py-app-dev", specifier = ">=2.1,<3" },
+    { name = "py-app-dev", specifier = ">=2.22,<3" },
+    { name = "pypeline-runner", specifier = ">=1.33,<2" },
     { name = "typer", specifier = ">=0,<1" },
 ]
 
@@ -2051,7 +2053,6 @@ dev = [
     { name = "furo" },
     { name = "myst-parser", specifier = ">=4,<5" },
     { name = "pre-commit", specifier = ">=4,<5" },
-    { name = "pypeline-runner", specifier = ">=1.32,<2" },
     { name = "pytest", specifier = "==9.*" },
     { name = "pytest-cov", specifier = "==7.*" },
     { name = "ruff", specifier = ">=0,<1" },

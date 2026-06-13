@@ -3,6 +3,7 @@ from typing import Any
 
 from poks.domain import PoksConfig
 from pypeline.steps.poks_install import PoksInstall as BasePoksInstall
+from pypeline.steps.poks_install import PoksManifestFile
 
 from yanga_core.domain.config_utils import collect_configs_by_id, parse_config
 from yanga_core.domain.execution_context import ExecutionContext
@@ -13,19 +14,15 @@ class PoksInstall(BasePoksInstall[ExecutionContext]):
         super().__init__(execution_context, group_name, config)
         self.artifacts_locator = execution_context.spl_paths
 
-    def _collect_dependencies(self) -> PoksConfig:
-        collected = PoksConfig()
+    def _collect_manifests(self) -> list[PoksManifestFile]:
+        # Base sources first (root poks.json + registry), then scoped poks fragments from
+        # variant/platform/variant-platform yanga.yaml; a later, more specific scope wins.
+        # Each carrier keeps its declaring file so the base get_inputs tracks edits to it.
+        manifests = super()._collect_manifests()
         for cfg in collect_configs_by_id(self.execution_context, "poks"):
             manifest = parse_config(cfg, PoksConfig, self.project_root_dir)
-            self._merge_buckets(collected, manifest.buckets)
-            self._merge_apps(collected, manifest.apps)
-        return collected
-
-    def get_inputs(self) -> list[Path]:
-        # Include each scoped fragment's yanga.yaml so editing a dependency there
-        # invalidates this step's cache (the base only tracks the root config).
-        extra = [cfg.location.file for cfg in collect_configs_by_id(self.execution_context, "poks") if cfg.location and cfg.location.file]
-        return list(dict.fromkeys(super().get_inputs() + extra))
+            manifests.append(PoksManifestFile(payload=manifest, file=cfg.location.file if cfg.location else None))
+        return manifests
 
     @property
     def output_dir(self) -> Path:

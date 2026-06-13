@@ -42,7 +42,7 @@ def test_scoop_install_with_global_scoopfile_and_platform_scoop_manifest(tmp_pat
     )
 
     scoop_install = ScoopInstall(exec_context, "install")
-    collected_dependencies = scoop_install._collect_dependencies()
+    collected_dependencies = scoop_install._merge_manifests()
 
     assert {bucket.name for bucket in collected_dependencies.buckets} == {"global_bucket"}
     assert {app.name for app in collected_dependencies.apps} == {"global_app", "platform_app"}
@@ -67,7 +67,7 @@ def test_scoop_install_with_platform_dependencies(tmp_path: Path) -> None:
     exec_context = ExecutionContext(project_root_dir=project_dir, variant_name="test_variant", user_request=UserVariantRequest("test_variant"), platform=platform)
 
     scoop_install = ScoopInstall(exec_context, "install")
-    collected_dependencies = scoop_install._collect_dependencies()
+    collected_dependencies = scoop_install._merge_manifests()
 
     assert len(collected_dependencies.buckets) == 1
     assert collected_dependencies.buckets[0].name == "main"
@@ -98,7 +98,7 @@ def test_scoop_install_with_variant_dependencies(tmp_path: Path) -> None:
     exec_context = ExecutionContext(project_root_dir=project_dir, variant_name="test_variant", user_request=UserVariantRequest("test_variant"), variant=variant)
 
     scoop_install = ScoopInstall(exec_context, "install")
-    collected_dependencies = scoop_install._collect_dependencies()
+    collected_dependencies = scoop_install._merge_manifests()
 
     assert len(collected_dependencies.buckets) == 1
     assert collected_dependencies.buckets[0].name == "extras"
@@ -142,7 +142,7 @@ def test_scoop_install_merges_platform_and_variant_dependencies(tmp_path: Path) 
     exec_context = ExecutionContext(project_root_dir=project_dir, variant_name="test_variant", user_request=UserVariantRequest("test_variant"), platform=platform, variant=variant)
 
     scoop_install = ScoopInstall(exec_context, "install")
-    collected_dependencies = scoop_install._collect_dependencies()
+    collected_dependencies = scoop_install._merge_manifests()
 
     assert len(collected_dependencies.buckets) == 2
     bucket_names = {bucket.name for bucket in collected_dependencies.buckets}
@@ -172,7 +172,7 @@ def test_scoop_install_generates_scoop_manifest(tmp_path: Path) -> None:
     exec_context = ExecutionContext(project_root_dir=project_dir, variant_name="test_variant", user_request=UserVariantRequest("test_variant"), platform=platform)
 
     scoop_install = ScoopInstall(exec_context, "install")
-    manifest = scoop_install._collect_dependencies()
+    manifest = scoop_install._merge_manifests()
     scoop_install._generate_scoop_manifest(manifest)
 
     assert scoop_install._output_manifest_file.exists()
@@ -217,7 +217,7 @@ def test_scoop_install_merges_buckets_with_conflicts(tmp_path: Path) -> None:
             ConfigFile(
                 id="scoop",
                 content=ScoopManifest(
-                    buckets=[ScoopFileElement.from_dict({"name": "main", "source": "https://github.com/different/main"})],
+                    buckets=[ScoopFileElement.from_dict({"name": "main", "source": "https://github.com/ScoopInstaller/Main"})],
                     apps=[],
                 ).to_dict(),
             )
@@ -227,11 +227,11 @@ def test_scoop_install_merges_buckets_with_conflicts(tmp_path: Path) -> None:
     exec_context = ExecutionContext(project_root_dir=project_dir, variant_name="test_variant", user_request=UserVariantRequest("test_variant"), platform=platform, variant=variant)
 
     scoop_install = ScoopInstall(exec_context, "install")
-    collected_dependencies = scoop_install._collect_dependencies()
+    collected_dependencies = scoop_install._merge_manifests()
 
     assert len(collected_dependencies.buckets) == 1
     assert collected_dependencies.buckets[0].name == "main"
-    assert collected_dependencies.buckets[0].source == "https://github.com/different/main"
+    assert collected_dependencies.buckets[0].source == "https://github.com/ScoopInstaller/Main"
 
 
 def test_scoop_install_variant_specific_directories(tmp_path: Path) -> None:
@@ -259,7 +259,7 @@ def test_scoop_install_variant_specific_directories(tmp_path: Path) -> None:
         )
 
         scoop_install = ScoopInstall(exec_context, "install")
-        collected_dependencies = scoop_install._collect_dependencies()
+        collected_dependencies = scoop_install._merge_manifests()
         scoop_install._generate_scoop_manifest(collected_dependencies)
 
         expected_scoop_file = project_dir / ".yanga" / "build" / variant_name / "windows_platform" / "scoopfile.json"

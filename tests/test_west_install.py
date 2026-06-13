@@ -351,7 +351,7 @@ manifest:
     manifest_file = WestManifestFile.from_file(west_yaml_file)
     assert manifest_file.file == west_yaml_file
 
-    manifest = manifest_file.manifest
+    manifest = manifest_file.payload
 
     gtest_remote = assert_element_of_type(manifest.remotes, WestRemote, lambda r: r.name == "gtest")
     assert gtest_remote.url_base == "https://github.com/google"
