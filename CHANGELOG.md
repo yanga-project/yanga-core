@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.0 (2026-06-22)
+
+### Features
+
+- Clarify component domain naming ([`eba7f1e`](https://github.com/yanga-project/yanga-core/commit/eba7f1eefa85e8648452746b6035950bbc46dcd8))
+
 ## v0.7.0 (2026-06-22)
 
 ### Features
