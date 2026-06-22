@@ -9,5 +9,6 @@ Understanding-oriented content that explains the concepts, design decisions, and
 
 concepts
 architecture
+component-model
 design-decisions
 ```

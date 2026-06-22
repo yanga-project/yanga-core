@@ -11,8 +11,9 @@ from pathlib import Path
 
 from py_app_dev.core.config import BaseConfigDictMixin, BaseConfigJSONMixin
 
+from yanga_core.domain.component_resolver import declared_location
 from yanga_core.domain.config import BuildTargets, PlatformConfig
-from yanga_core.domain.project_slurper import DEFAULT_EXCLUDE_DIRS, ComponentFactory, YangaProjectSlurper
+from yanga_core.domain.project_slurper import DEFAULT_EXCLUDE_DIRS, YangaProjectSlurper
 from yanga_core.ini import YangaIni
 
 SCHEMA_VERSION = "1.1"
@@ -190,11 +191,13 @@ def _variants(slurper: YangaProjectSlurper) -> list[InfoVariant]:
 
 
 def _components(project_dir: Path, slurper: YangaProjectSlurper) -> list[InfoComponent]:
-    factory = ComponentFactory(project_dir)
+    # A component's location is resolution policy owned by ComponentResolver; reuse its rule
+    # here for display (info is static, with no install context, so it cannot run the full
+    # install-aware resolve — it just shows the declared location relative to the project).
     return [
         InfoComponent(
             name=cfg.name,
-            path=_to_relative_posix(project_dir, factory.create(cfg).path),
+            path=_to_relative_posix(project_dir, declared_location(cfg)),
         )
         for cfg in slurper.components_configs_pool.values()
     ]

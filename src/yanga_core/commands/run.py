@@ -166,7 +166,7 @@ class RunCommand(Command):
             project_root_dir=project_dir,
             variant_name=variant_name,
             user_request=user_request,
-            components=(project_slurper.get_variant_components(variant_name, platform_name) if variant_name else []),
+            selected_component_names=(project_slurper.get_selected_component_names(variant_name, platform_name) if variant_name else []),
             user_config_files=project_slurper.user_config_files,
             features_selection_file=(project_slurper.get_variant_config_file(variant_name) if variant_name else None),
             platform=project_slurper.get_platform(platform_name),
@@ -174,6 +174,10 @@ class RunCommand(Command):
             project_configs=project_slurper.project_configs,
             create_yanga_build_dir=project_slurper.create_yanga_build_dir,
         )
+        # Publish the declared component configs to the run's registry (registry-as-pool);
+        # generators publish more during the pipeline, and the resolver reads them all back.
+        if variant_name:
+            project_slurper.register_components(execution_context.data_registry)
         PipelineStepsExecutor[ExecutionContext](
             execution_context,
             steps_references,

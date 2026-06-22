@@ -232,6 +232,10 @@ class ComponentConfig(ConfigElement):
     alias: str | None = None
     #: Directory relative to the project root where this component is located
     path: Path | None = None
+    #: Name of an ``ExternalProject`` (e.g. a west dependency) this component lives in.
+    #: When set, ``path`` is relative to that project's resolved install location
+    #: instead of the project root, so the workspace/install layout stays out of the YAML.
+    external: str | None = None
 
     # This field is intended to keep track of where configuration was loaded from and
     # it is automatically added when configuration is loaded from file

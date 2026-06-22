@@ -1,54 +1,29 @@
-from collections import OrderedDict
 from pathlib import Path
 from typing import Optional
 
+from py_app_dev.core.data_registry import DataRegistry
 from py_app_dev.core.exceptions import UserNotificationException
 from py_app_dev.core.logging import logger
 from pypeline.domain.pipeline import PipelineConfig, PipelineConfigIterator
 
 from yanga_core.domain.spl_paths import SPLPaths
 
-from .components import Component
-from .config import ComponentConfig, ConfigFile, DocsConfiguration, PlatformConfig, TestingConfiguration, VariantConfig, YangaUserConfig
+from .config import ComponentConfig, ConfigFile, PlatformConfig, VariantConfig, YangaUserConfig
 from .config_slurper import YangaConfigSlurper
 
 #: Directories always skipped by the project discovery walk, in addition to any user-configured ``exclude_dirs``.
 DEFAULT_EXCLUDE_DIRS: list[str] = [".git", ".github", ".vscode", "build", ".venv"]
 
-
-class ComponentFactory:
-    def __init__(self, project_dir: Path) -> None:
-        self.project_dir = project_dir
-
-    def create(self, component_config: ComponentConfig) -> Component:
-        component_path = self.project_dir / component_config.path if component_config.path else None
-        if not component_path:
-            component_path = component_config.file if component_config.file else None
-            if not component_path:
-                component_path = self.project_dir
-        component = Component(
-            component_config.name,
-            component_path,
-        )
-        component.sources = component_config.sources
-        component.docs = component_config.docs if component_config.docs else DocsConfiguration()
-        if component_config.docs_sources:
-            component.docs.sources.extend(component_config.docs_sources)
-        component.testing = component_config.testing if component_config.testing else TestingConfiguration()
-        if component_config.test_sources:
-            component.testing.sources.extend(component_config.test_sources)
-        component.alias = component_config.alias
-        return component
+__all__ = ["ComponentsConfigsPool", "YangaProjectSlurper"]
 
 
 class ComponentsConfigsPool:
-    def __init__(self, component_factory: ComponentFactory) -> None:
+    def __init__(self) -> None:
         self._pool: dict[str, ComponentConfig] = {}
-        self.component_factory = component_factory
 
     @classmethod
-    def from_configs(cls, configs: list[ComponentConfig], component_factory: ComponentFactory) -> "ComponentsConfigsPool":
-        pool = cls(component_factory)
+    def from_configs(cls, configs: list[ComponentConfig]) -> "ComponentsConfigsPool":
+        pool = cls()
         for config in configs:
             if config.name in pool._pool:
                 raise UserNotificationException(f"Component '{config.name}' is already defined in the pool.")
@@ -76,103 +51,11 @@ class ComponentsConfigsPool:
     def get_component_config(self, name: str) -> Optional[ComponentConfig]:
         return self.get(name)
 
-    def get_component(self, name: str) -> Optional[Component]:
-        component_config = self.get_component_config(name)
-        return self.component_factory.create(component_config) if component_config else None
-
-
-class IncludeDirectoriesResolver:
-    """
-    Resolve include directories for each component.
-
-    Collects the private include directories and all public include directories
-    from the required components. This is transitive, meaning that if a component requires
-    other components, the public include directories of the required component are also added
-    to the component's include directories. The resulted list is uniques and keeps the order
-    of the include directories as they were defined in the configuration.
-    """
-
-    def __init__(self, components_configs_pool: ComponentsConfigsPool) -> None:
-        self._components_configs_pool = components_configs_pool
-        self._cache: dict[str, list[Path]] = {}
-
-    def populate(self, components: list[Component]) -> None:
-        # Build components dictionary with name and alias mappings
-        components_dict = self._build_components_dictionary(components)
-
-        for component in components:
-            config = self._components_configs_pool.get_component_config(component.name)
-            if config is None:
-                continue
-            dependency_path: list[str] = []  # Track the dependency path for circular detection
-            public_includes = self._collect_public_includes(config, dependency_path, components_dict)
-            includes = [component.path.joinpath(inc_dir) for inc_dir in config.private_include_directories] + public_includes
-            # Remove duplicates but preserve order
-            component.include_dirs = list(OrderedDict.fromkeys(includes))
-
-    def _build_components_dictionary(self, components: list[Component]) -> dict[str, Component]:
-        """Build dictionary of components by name and alias, validating for duplicates."""
-        components_dict: dict[str, Component] = {}
-
-        for component in components:
-            # Add component by name
-            if component.name in components_dict:
-                raise UserNotificationException(f"Duplicate component name '{component.name}' found.")
-            components_dict[component.name] = component
-
-            # Add component by alias if it has one
-            if component.alias:
-                if component.alias in components_dict:
-                    existing_component = components_dict[component.alias]
-                    raise UserNotificationException(f"Duplicate alias '{component.alias}' found: used by both '{existing_component.name}' and '{component.name}'.")
-                components_dict[component.alias] = component
-
-        return components_dict
-
-    def _collect_public_includes(self, component_config: ComponentConfig, dependency_path: list[str], components_dict: dict[str, Component]) -> list[Path]:
-        if component_config.name in self._cache:
-            return self._cache[component_config.name]
-
-        if component_config.name in dependency_path:
-            # Create the circular dependency chain message
-            cycle_start_index = dependency_path.index(component_config.name)
-            circular_chain = [*dependency_path[cycle_start_index:], component_config.name]
-            chain_str = " -> ".join(circular_chain)
-            raise UserNotificationException(f"Circular dependency detected: {chain_str}")
-
-        dependency_path.append(component_config.name)
-        component = components_dict.get(component_config.name)
-        if not component:
-            # If the component is not explicitly provided, check maybe is in the component pool
-            component = self._components_configs_pool.get_component(component_config.name)
-            if not component:
-                raise UserNotificationException(f"Component '{component_config.name}' not found in the provided components list.")
-        includes = [component.path.joinpath(inc_dir) for inc_dir in component_config.public_include_directories]
-
-        for dep_name in component_config.required_components:
-            # Look for required component by name or alias in the components dictionary
-            dep_component = components_dict.get(dep_name)
-            if dep_component:
-                dep_config = self._components_configs_pool.get_component_config(dep_component.name)
-            else:
-                dep_config = self._components_configs_pool.get_component_config(dep_name)
-            if dep_config:
-                includes.extend(self._collect_public_includes(dep_config, dependency_path, components_dict))
-            else:
-                raise UserNotificationException(f"Configuration for component '{dep_name}' not found.")
-
-        dependency_path.pop()  # Remove current component from path after processing
-        # Remove duplicates but preserve order
-        deduped_includes = list(OrderedDict.fromkeys(includes))
-        self._cache[component_config.name] = deduped_includes
-        return deduped_includes
-
 
 class YangaProjectSlurper:
     def __init__(self, project_dir: Path, configuration_file_name: Optional[str] = None, exclude_dirs: Optional[list[str]] = None, create_yanga_build_dir: bool = True) -> None:
         self.logger = logger.bind()
         self.project_dir = project_dir
-        self.component_factory = ComponentFactory(self.project_dir)
         exclude = exclude_dirs if exclude_dirs else []
         # Merge the exclude directories with the hardcoded ones
         exclude = list({*exclude, *DEFAULT_EXCLUDE_DIRS})
@@ -207,8 +90,20 @@ class YangaProjectSlurper:
         spl_paths = SPLPaths(self.project_dir, variant_name, None, None)
         return spl_paths.locate_artifact(variant.features_selection_file, [variant.file]) if variant.features_selection_file else None
 
-    def get_variant_components(self, variant_name: str, platform_name: Optional[str] = None) -> list[Component]:
-        return self._collect_variant_components(self.get_variant_config(variant_name), platform_name)
+    def get_selected_component_names(self, variant_name: str, platform_name: Optional[str] = None) -> list[str]:
+        return self._collect_selected_component_names(self.get_variant_config(variant_name), platform_name)
+
+    def register_components(self, data_registry: DataRegistry) -> None:
+        """
+        Publish every declared component config to the run's data registry.
+
+        The slurper is the *first* producer of component configs; generators publish more
+        the same way later in the pipeline. Consumers read the whole population back off
+        the registry (registry-as-pool), so the population is never threaded through the
+        execution context as a separate field.
+        """
+        for config in self.components_configs_pool.values():
+            data_registry.insert(config, provider=type(self).__name__)
 
     def get_platform(self, platform_name: Optional[str]) -> Optional[PlatformConfig]:
         if not platform_name:
@@ -218,43 +113,36 @@ class YangaProjectSlurper:
             raise UserNotificationException(f"Platform '{platform_name}' not found in the configuration.")
         return platform
 
-    def _collect_variant_components(self, variant: VariantConfig, platform_name: Optional[str] = None) -> list[Component]:
+    def _collect_selected_component_names(self, variant: VariantConfig, platform_name: Optional[str] = None) -> list[str]:
         """
-        Collect all components for the given variant.
+        Names of the components built for this variant/platform — the build scope.
 
-        Look for components in the component pool and add them to the list.
-        Platform-specific components from the variant's platforms configuration and
-        platform configuration are also included.
+        The union of the variant's components, the variant's platform-specific components,
+        and the platform's own components, validated against the pool. This is selection
+        only: turning configs into ``Component``s and resolving them is the resolver's job.
         """
-        components = []
         if not variant.components:
             raise UserNotificationException(f"Variant '{variant.name}' is empty (no 'components' found).")
 
-        # Collect base variant components
         component_names = variant.components.copy()
 
-        # Add platform-specific components from variant's platforms configuration
+        # Platform-specific components from the variant's platforms configuration
         if platform_name and variant.platforms and platform_name in variant.platforms:
-            platform_config = variant.platforms[platform_name]
-            component_names.extend(platform_config.components)
+            component_names.extend(variant.platforms[platform_name].components)
 
-        # Add platform-specific components from platform configuration
+        # Platform-specific components from the platform configuration
         if platform_name:
             platform = next((p for p in self.platforms if p.name == platform_name), None)
             if platform and platform.components:
                 component_names.extend(platform.components)
 
         for component_name in component_names:
-            component_config = self.components_configs_pool.get(component_name, None)
-            if not component_config:
+            if not self.components_configs_pool.get(component_name, None):
                 raise UserNotificationException(f"Component '{component_name}' not found in the configuration.")
-            components.append(self.component_factory.create(component_config))
-        self._resolve_subcomponents(components, self.components_configs_pool)
-        IncludeDirectoriesResolver(self.components_configs_pool).populate(components)
-        return components
+        return component_names
 
     def _collect_components_configs(self, user_configs: list[YangaUserConfig]) -> ComponentsConfigsPool:
-        components_config = ComponentsConfigsPool(self.component_factory)
+        components_config = ComponentsConfigsPool()
         for user_config in user_configs:
             for component_config in user_config.components:
                 if components_config.get(component_config.name, None):
@@ -265,27 +153,6 @@ class YangaProjectSlurper:
                 component_config.file = user_config.file
                 components_config[component_config.name] = component_config
         return components_config
-
-    def _resolve_subcomponents(
-        self,
-        components: list[Component],
-        components_configs_pool: ComponentsConfigsPool,
-    ) -> None:
-        """Resolve subcomponents for each component."""
-        components_pool = {c.name: c for c in components}
-        for component in components:
-            # It can not be that there is no configuration for the component,
-            # otherwise it would not be in the list
-            component_config = components_configs_pool.get(component.name)
-            if component_config and component_config.components:
-                for subcomponent_name in component_config.components:
-                    subcomponent = components_pool.get(subcomponent_name, None)
-                    if not subcomponent:
-                        # TODO: throw the UserNotificationException and mention the file
-                        # where the subcomponent was defined
-                        raise UserNotificationException(f"Component '{subcomponent_name}' not found in the configuration.")
-                    component.components.append(subcomponent)
-                    subcomponent.is_subcomponent = True
 
     def _find_pipeline_config(self, user_configs: list[YangaUserConfig]) -> Optional[PipelineConfig]:
         return next(

@@ -306,12 +306,19 @@ def test_west_install_tracks_individual_dependency_directories(tmp_path: Path) -
     foo_dir = workspace_dir / "external" / "foo"
     foo_dir.mkdir(parents=True, exist_ok=True)
 
-    west_install._record_installed_directories(merged_manifest)
+    west_install._record_install_result(merged_manifest)
 
     assert len(west_install.install_result.installed_dirs) == 3
     assert workspace_dir in west_install.install_result.installed_dirs
     assert gtest_dir in west_install.install_result.installed_dirs
     assert foo_dir in west_install.install_result.installed_dirs
+
+    # The install result also carries one ExternalProject per dependency (name, revision,
+    # resolved path) — this is what an `external:` component resolves its root against.
+    installed_by_name = {project.name: project for project in west_install.install_result.installed_projects}
+    assert installed_by_name.keys() == {"googletest", "libfoo"}
+    assert installed_by_name["googletest"].path == gtest_dir
+    assert installed_by_name["libfoo"].path == foo_dir
 
     west_install.install_result.to_json_file(west_install._install_result_file)
     assert west_install._install_result_file.exists()
@@ -321,6 +328,7 @@ def test_west_install_tracks_individual_dependency_directories(tmp_path: Path) -
     assert workspace_dir in loaded_result.installed_dirs
     assert gtest_dir in loaded_result.installed_dirs
     assert foo_dir in loaded_result.installed_dirs
+    assert {project.name for project in loaded_result.installed_projects} == {"googletest", "libfoo"}
 
 
 def test_west_manifest_file_from_file(tmp_path: Path) -> None:

@@ -23,7 +23,7 @@ classifiers = [
 
 dependencies = [
   "py-app-dev>=2.22,<3",
-  "pypeline-runner>=1.33,<2",
+  "pypeline-runner>=1.34,<2",
   "typer>=0,<1",
   "mashumaro>=3.13,<4",
   "clanguru>=0,<1",
