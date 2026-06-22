@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0 (2026-06-22)
+
+### Features
+
+- Redesign component data lifecycle ([`09249d3`](https://github.com/yanga-project/yanga-core/commit/09249d3f72b5af07550c9ab2b2955dde79199b7e))
+
 ## v0.6.0 (2026-06-13)
 
 ### Features
