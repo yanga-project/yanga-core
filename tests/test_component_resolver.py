@@ -5,7 +5,7 @@ from py_app_dev.core.exceptions import UserNotificationException
 
 from yanga_core.domain.component_resolver import ComponentResolver, resolve_include_directories
 from yanga_core.domain.components import Component
-from yanga_core.domain.config import ComponentConfig, IncludeDirectory, IncludeDirectoryScope, TestingConfiguration
+from yanga_core.domain.config import ComponentConfig, IncludeDirectory, IncludeDirectoryScope, TestingConfig
 from yanga_core.domain.spl_paths import SPLPaths
 
 
@@ -174,7 +174,7 @@ def test_resolve_include_directories_aggregates_components_deduped() -> None:
 
 def test_is_testable_reflects_declared_test_sources() -> None:
     configs = [
-        ComponentConfig(name="tested", path=Path("tested"), testing=TestingConfiguration(sources=["test/test_tested.cc"])),
+        ComponentConfig(name="tested", path=Path("tested"), testing=TestingConfig(sources=["test/test_tested.cc"])),
         ComponentConfig(name="untested", path=Path("untested")),
     ]
     resolver = make_resolver(configs)

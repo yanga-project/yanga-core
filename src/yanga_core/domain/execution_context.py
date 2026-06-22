@@ -104,7 +104,7 @@ class ExecutionContext(_ExecutionContext):
         )
 
     @property
-    def selected_components(self) -> list[Component]:
+    def components(self) -> list[Component]:
         """The components built for this variant/platform (delegates to the resolver)."""
         return self.component_resolver.selected_components
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from yanga_core.domain.config import DocsConfiguration, TestingConfiguration
+from yanga_core.domain.config import DocsConfig, TestingConfig
 
 
 @dataclass
@@ -30,9 +30,9 @@ class Component:
     #: Resolved transitive include directories to compile this component against.
     include_directories: list[Path] = field(default_factory=list)
     #: Testing configuration — generators read its mocking settings (sources are located above).
-    testing: TestingConfiguration | None = None
+    testing: TestingConfig | None = None
     #: Documentation configuration — generators read e.g. ``exclude_productive_code``.
-    docs: DocsConfiguration | None = None
+    docs: DocsConfig | None = None
     #: Names of the components this component requires header files from (informational).
     required_components: list[str] = field(default_factory=list)
     #: Another name this component is referred to by.
@@ -42,7 +42,7 @@ class Component:
     #: Whether this component is a sub-component of another component.
     is_subcomponent: bool = False
     #: Resolved subcomponents.
-    components: list["Component"] = field(default_factory=list)
+    subcomponents: list["Component"] = field(default_factory=list)
 
     @property
     def is_testable(self) -> bool:

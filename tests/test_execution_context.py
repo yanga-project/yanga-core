@@ -21,9 +21,9 @@ def test_component_resolver_is_built_once_and_shared(tmp_path: Path) -> None:
     assert context.component_resolver is context.component_resolver
 
 
-def test_selected_components_are_derived_from_the_population(tmp_path: Path) -> None:
+def test_components_are_derived_from_the_population(tmp_path: Path) -> None:
     context = make_context(tmp_path)
-    assert [component.name for component in context.selected_components] == ["comp_a"]
+    assert [component.name for component in context.components] == ["comp_a"]
 
 
 def test_resolved_component_is_memoised_through_shared_resolver(tmp_path: Path) -> None:
@@ -31,7 +31,7 @@ def test_resolved_component_is_memoised_through_shared_resolver(tmp_path: Path) 
 
     # The shared resolver builds each component once, so the resolved component (and its
     # already-resolved include directories) is the same instance on every access.
-    assert context.selected_components[0] is context.selected_components[0]
+    assert context.components[0] is context.components[0]
 
 
 def test_component_registered_after_construction_is_resolvable(tmp_path: Path) -> None:
@@ -45,4 +45,4 @@ def test_component_registered_after_construction_is_resolvable(tmp_path: Path) -
     )
     context.data_registry.insert(ComponentConfig(name="generated_comp", path=Path("generated_comp")), provider="SomeGenerator")
 
-    assert [component.name for component in context.selected_components] == ["generated_comp"]
+    assert [component.name for component in context.components] == ["generated_comp"]

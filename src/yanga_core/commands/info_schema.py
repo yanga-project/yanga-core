@@ -199,7 +199,7 @@ def _components(project_dir: Path, slurper: YangaProjectSlurper) -> list[InfoCom
             name=cfg.name,
             path=_to_relative_posix(project_dir, declared_location(cfg)),
         )
-        for cfg in slurper.components_configs_pool.values()
+        for cfg in slurper.components
     ]
 
 

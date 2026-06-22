@@ -52,7 +52,7 @@ class InfoCommand(Command):
     @staticmethod
     def _collect_reference_diagnostics(slurper: YangaProjectSlurper) -> list[InfoDiagnostic]:
         diagnostics: list[InfoDiagnostic] = []
-        known_components = {cfg.name for cfg in slurper.components_configs_pool.values()}
+        known_components = {cfg.name for cfg in slurper.components}
         known_platforms = {p.name for p in slurper.platforms}
 
         def file_str(file: Path | None) -> str | None:

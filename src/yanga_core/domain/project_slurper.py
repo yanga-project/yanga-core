@@ -14,42 +14,7 @@ from .config_slurper import YangaConfigSlurper
 #: Directories always skipped by the project discovery walk, in addition to any user-configured ``exclude_dirs``.
 DEFAULT_EXCLUDE_DIRS: list[str] = [".git", ".github", ".vscode", "build", ".venv"]
 
-__all__ = ["ComponentsConfigsPool", "YangaProjectSlurper"]
-
-
-class ComponentsConfigsPool:
-    def __init__(self) -> None:
-        self._pool: dict[str, ComponentConfig] = {}
-
-    @classmethod
-    def from_configs(cls, configs: list[ComponentConfig]) -> "ComponentsConfigsPool":
-        pool = cls()
-        for config in configs:
-            if config.name in pool._pool:
-                raise UserNotificationException(f"Component '{config.name}' is already defined in the pool.")
-            pool._pool[config.name] = config
-        return pool
-
-    def __getitem__(self, name: str) -> ComponentConfig:
-        """Get a component configuration by name, raising KeyError if not found."""
-        if name not in self._pool:
-            raise KeyError(f"Component '{name}' not found in the configuration pool.")
-        return self._pool[name]
-
-    def __setitem__(self, name: str, config: ComponentConfig) -> None:
-        """Set a component configuration by name, replacing any existing configuration."""
-        self._pool[name] = config
-
-    def values(self) -> list[ComponentConfig]:
-        """Return a list of all component configurations in the pool."""
-        return list(self._pool.values())
-
-    def get(self, name: str, default: Optional[ComponentConfig] = None) -> Optional[ComponentConfig]:
-        """Get a component configuration by name, returning None if not found."""
-        return self._pool.get(name, default)
-
-    def get_component_config(self, name: str) -> Optional[ComponentConfig]:
-        return self.get(name)
+__all__ = ["YangaProjectSlurper"]
 
 
 class YangaProjectSlurper:
@@ -60,10 +25,10 @@ class YangaProjectSlurper:
         # Merge the exclude directories with the hardcoded ones
         exclude = list({*exclude, *DEFAULT_EXCLUDE_DIRS})
         self.user_configs: list[YangaUserConfig] = YangaConfigSlurper(project_dir=self.project_dir, exclude_dirs=exclude, configuration_file_name=configuration_file_name).slurp()
-        self.components_configs_pool: ComponentsConfigsPool = self._collect_components_configs(self.user_configs)
         self.pipeline: Optional[PipelineConfig] = self._find_pipeline_config(self.user_configs)
         self.variants: list[VariantConfig] = self._collect_variants(self.user_configs)
         self.platforms: list[PlatformConfig] = self._collect_platforms(self.user_configs)
+        self.components: list[ComponentConfig] = self._collect_components(self.user_configs)
         self.create_yanga_build_dir = create_yanga_build_dir
 
     @property
@@ -102,7 +67,7 @@ class YangaProjectSlurper:
         the registry (registry-as-pool), so the population is never threaded through the
         execution context as a separate field.
         """
-        for config in self.components_configs_pool.values():
+        for config in self.components:
             data_registry.insert(config, provider=type(self).__name__)
 
     def get_platform(self, platform_name: Optional[str]) -> Optional[PlatformConfig]:
@@ -118,8 +83,8 @@ class YangaProjectSlurper:
         Names of the components built for this variant/platform — the build scope.
 
         The union of the variant's components, the variant's platform-specific components,
-        and the platform's own components, validated against the pool. This is selection
-        only: turning configs into ``Component``s and resolving them is the resolver's job.
+        and the platform's own components, validated against the declared components. This is
+        selection only: turning configs into ``Component``s and resolving them is the resolver's job.
         """
         if not variant.components:
             raise UserNotificationException(f"Variant '{variant.name}' is empty (no 'components' found).")
@@ -136,23 +101,23 @@ class YangaProjectSlurper:
             if platform and platform.components:
                 component_names.extend(platform.components)
 
+        declared_names = {component.name for component in self.components}
         for component_name in component_names:
-            if not self.components_configs_pool.get(component_name, None):
+            if component_name not in declared_names:
                 raise UserNotificationException(f"Component '{component_name}' not found in the configuration.")
         return component_names
 
-    def _collect_components_configs(self, user_configs: list[YangaUserConfig]) -> ComponentsConfigsPool:
-        components_config = ComponentsConfigsPool()
+    def _collect_components(self, user_configs: list[YangaUserConfig]) -> list[ComponentConfig]:
+        components: list[ComponentConfig] = []
         for user_config in user_configs:
-            for component_config in user_config.components:
-                if components_config.get(component_config.name, None):
-                    raise UserNotificationException(
-                        f"Component '{component_config.name}' is defined in multiple configuration files.See {components_config[component_config.name].file} and {user_config.file}"
-                    )
+            for component in user_config.components:
+                existing = next((c for c in components if c.name == component.name), None)
+                if existing is not None:
+                    raise UserNotificationException(f"Component '{component.name}' is defined in multiple configuration files. See {existing.file} and {user_config.file}")
                 # TODO: shall the project slurper be responsible for updating the source file for the configuration?
-                component_config.file = user_config.file
-                components_config[component_config.name] = component_config
-        return components_config
+                component.file = user_config.file
+                components.append(component)
+        return components
 
     def _find_pipeline_config(self, user_configs: list[YangaUserConfig]) -> Optional[PipelineConfig]:
         return next(
@@ -181,7 +146,7 @@ class YangaProjectSlurper:
         self.logger.info("-" * 80)
         self.logger.info(f"Project directory: {self.project_dir}")
         self.logger.info(f"Parsed {len(self.user_configs)} configuration file(s).")
-        self.logger.info(f"Found {len(self.components_configs_pool.values())} component(s).")
+        self.logger.info(f"Found {len(self.components)} component(s).")
         self.logger.info(f"Found {len(self.variants)} variant(s):")
         for variant in self.variants:
             self.logger.info(f"  - {variant.name}")

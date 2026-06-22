@@ -127,10 +127,10 @@ class ComponentResolver:
             alias=config.alias,
             description=config.description,
         )
-        for subcomponent_name in config.components:
+        for subcomponent_name in config.subcomponents:
             subcomponent = self._component(subcomponent_name)
             subcomponent.is_subcomponent = True
-            component.components.append(subcomponent)
+            component.subcomponents.append(subcomponent)
         return component
 
     def _resolve_include_directories(self, config: ComponentConfig, root: Path, located_sources: list[Path]) -> list[Path]:

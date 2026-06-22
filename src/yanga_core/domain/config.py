@@ -49,22 +49,22 @@ class VarsConfig:
 
 
 @dataclass
-class MockingConfiguration(ConfigElement):
+class MockingConfig(ConfigElement):
     enabled: bool | None = None
     strict: bool | None = None
     exclude_symbol_patterns: list[str] | None = None
 
 
 @dataclass
-class TestingConfiguration(ConfigElement):
+class TestingConfig(ConfigElement):
     #: Component test sources
     sources: list[str] = field(default_factory=list)
     #: Mocking configuration
-    mocking: MockingConfiguration | None = None
+    mocking: MockingConfig | None = None
 
 
 @dataclass
-class DocsConfiguration(ConfigElement):
+class DocsConfig(ConfigElement):
     #: Component documentation sources
     sources: list[str] = field(default_factory=list)
     #: Do not generate documentation for the productive code.
@@ -213,17 +213,17 @@ class ComponentConfig(ConfigElement):
     #: Description
     description: str | None = None
     #: Subcomponents - intended for `container` components that can collect other components to ease their management
-    components: list[str] = field(default_factory=list)
+    subcomponents: list[str] = field(default_factory=list)
     #: Component sources
     sources: list[str] = field(default_factory=list)
     #: Component test sources
     test_sources: list[str] = field(default_factory=list)
     #: Testing
-    testing: TestingConfiguration | None = None
+    testing: TestingConfig | None = None
     #: Documentation sources
     docs_sources: list[str] = field(default_factory=list)
     #: Documentation configuration
-    docs: DocsConfiguration | None = None
+    docs: DocsConfig | None = None
     #: Component include directories
     include_directories: list[IncludeDirectory] = field(default_factory=list)
     #: Name of the components that this component requires header files from
