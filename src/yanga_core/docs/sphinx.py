@@ -82,8 +82,8 @@ class SphinxConfig:
         self.report_data = self._load_report_config_data()
 
     def _load_report_config_data(self) -> SphinxReportConfig | None:
+        # One payload for every scope, so there is nothing to discriminate at load time.
         report_config_file_path_str = os.environ.get(self.REPORT_CONFIGURATION_FILE_ENV_NAME, None)
-
         if report_config_file_path_str:
             report_config_file = Path(report_config_file_path_str)
             if report_config_file.is_file():
@@ -92,7 +92,7 @@ class SphinxConfig:
 
     @property
     def project(self) -> str:
-        return self.report_data.variant_name if self.report_data else "Unknown"
+        return self.report_data.title if self.report_data else "Unknown"
 
     @property
     def html_context(self) -> dict[str, Any]:
@@ -100,7 +100,7 @@ class SphinxConfig:
 
     @property
     def include_patterns(self) -> list[str]:
-        """Collect all files from the report config."""
+        """Sphinx source files the (generated) report config references."""
         if self.report_data:
             return [_relativize_path(file, self.report_data.project_dir) for file in self.report_data.collect_all_files()]
         return []

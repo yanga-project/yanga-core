@@ -84,7 +84,8 @@ class VariantReportData(BaseConfigJSONMixin):
     """Variant configuration to be used by the report generation tools (e.g., Sphinx)."""
 
     files: list[ReportRelevantFiles]
-    build_dir: Path
+    #: Build directory the files came from; unused by the renderer, and absent for non-build (SPL) content.
+    build_dir: Path | None = None
 
     @property
     def docs_files(self) -> list[Path]:
@@ -132,17 +133,36 @@ class VariantReportData(BaseConfigJSONMixin):
 class ComponentReportData(VariantReportData):
     """The component report data content is the same as a variant data content but with extra name."""
 
-    name: str
+    name: str = ""
+
+
+class ReportScope(StringableEnum):
+    """The three report scopes; the single discriminator the templates branch on."""
+
+    COMPONENT = auto()
+    VARIANT = auto()
+    SPL = auto()
 
 
 @dataclass
 class ReportData(BaseConfigJSONMixin):
-    """Configuration used by the report generation tools (e.g., Sphinx)."""
+    """
+    Configuration consumed by the report generation tools (e.g., Sphinx).
 
-    variant_name: str
-    platform_name: str
+    One payload for all three scopes. It carries the report-relevant *generated* content
+    (files + references to generated HTML); authored files are toctree'd by the user directly
+    in `index.md` and never appear here. SPL reuses this shape unchanged: its `variant_data`
+    holds one HTML reference per built variant, and `scope` tells the template how to frame it.
+    """
+
     project_dir: Path
-    # Updated only for single component reports
+    #: Which report this is; the single discriminator the templates branch on.
+    scope: ReportScope = field(default=ReportScope.VARIANT, metadata=stringable_enum_field_metadata(ReportScope))
+    variant_name: str | None = None
+    platform_name: str | None = None
+    #: Product-line display name; set only for SPL reports.
+    project_name: str | None = None
+    # Set only for single component reports
     component_name: str | None = None
     components: list[ComponentReportData] = field(default_factory=list)
     variant_data: VariantReportData | None = None
@@ -151,7 +171,22 @@ class ReportData(BaseConfigJSONMixin):
 
     @property
     def has_component_scope(self) -> bool:
-        return self.component_name is not None
+        return self.scope == ReportScope.COMPONENT
+
+    @property
+    def has_variant_scope(self) -> bool:
+        return self.scope == ReportScope.VARIANT
+
+    @property
+    def has_scope_spl(self) -> bool:
+        return self.scope == ReportScope.SPL
+
+    @property
+    def title(self) -> str:
+        """Display name for the report (Sphinx `project`): the product line for SPL, else the variant."""
+        if self.scope == ReportScope.SPL:
+            return self.project_name or "Unknown"
+        return self.variant_name or "Unknown"
 
     def collect_all_files(self) -> list[Path]:
         result = []
