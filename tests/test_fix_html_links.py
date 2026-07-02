@@ -36,15 +36,15 @@ def test_fix_html_links_command() -> None:
 
         assert result == 0
 
-        # Verify fixes
+        # Verify fixes; external artifact links must open in a new tab (they leave the Sphinx site)
         root_content = root_html.read_text()
-        assert 'href="docs/guide.html"' in root_content
-        assert 'href="api/index.html"' in root_content
+        assert 'href="docs/guide.html" target="_blank" rel="noopener"' in root_content
+        assert 'href="api/index.html" target="_blank" rel="noopener"' in root_content
         assert "#http://" not in root_content
 
         sub_content = sub_html.read_text()
-        assert 'href="../docs/guide.html"' in sub_content
-        assert 'href="../api/reference.html"' in sub_content
+        assert 'href="../docs/guide.html" target="_blank" rel="noopener"' in sub_content
+        assert 'href="../api/reference.html" target="_blank" rel="noopener"' in sub_content
         assert "#http://" not in sub_content
 
         # Clean file should be unchanged

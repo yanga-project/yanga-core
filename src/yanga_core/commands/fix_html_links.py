@@ -2,7 +2,9 @@
 Command line utility to fix buggy HTML links in Sphinx-generated documentation.
 
 Searches for links with pattern href="./some/path/file.html#http://" and replaces them
-with proper relative paths like href="../../some/path/file.html".
+with proper relative paths like href="../../some/path/file.html". The marker denotes
+generated HTML outside this Sphinx site (its own nav, no way back), so the fixed links
+also open in a new tab.
 """
 
 import re
@@ -34,7 +36,7 @@ def _create_replacement(match: re.Match[str], relative_depth: int) -> str:
     original_path = match.group(1)  # Extract "./some/path/file.html"
     path_prefix = "../" * relative_depth
     fixed_path = path_prefix + original_path[2:]  # Remove "./" and add appropriate "../"
-    return f'href="{fixed_path}"'
+    return f'href="{fixed_path}" target="_blank" rel="noopener"'
 
 
 def _fix_single_file(html_file: Path, report_root: Path, pattern: str) -> FileProcessResult:
@@ -65,6 +67,18 @@ def _fix_single_file(html_file: Path, report_root: Path, pattern: str) -> FilePr
     return FileProcessResult(html_file, fixes_count, True)
 
 
+#: Marker links to generated HTML living outside the Sphinx site (see module docstring).
+LINK_PATTERN = re.compile(r'href="(\./[^"]*\.html)#http://"')
+
+
+def fix_html_links(report_dir: Path) -> list[FileProcessResult]:
+    """Fix all marker links under a report root; shared by the CLI command and the SPL report step."""
+    html_files = list(report_dir.rglob("*.html"))
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(_fix_single_file, html_file, report_dir, LINK_PATTERN.pattern) for html_file in html_files]
+        return [future.result() for future in as_completed(futures)]
+
+
 @dataclass
 class CommandArgs(BaseConfigJSONMixin):
     report_dir: Path = field(metadata={"help": "Root directory of the HTML report to fix"})
@@ -75,8 +89,6 @@ class FixHtmlLinksCommand(Command):
     def __init__(self) -> None:
         super().__init__("fix_html_links", "Fix buggy HTML links in Sphinx-generated documentation.")
         self.logger = logger.bind()
-        # Precompile regex pattern for efficiency
-        self._link_pattern = re.compile(r'href="(\./[^"]*\.html)#http://"')
         self._verbose = False
 
     def log_info(self, message: str) -> None:
@@ -109,35 +121,26 @@ class FixHtmlLinksCommand(Command):
 
         self.log_info(f"Fixing HTML links in: {cli_args.report_dir}")
 
-        html_files = list(self._find_html_files(cli_args.report_dir))
-        total_files = len(html_files)
+        results = fix_html_links(cli_args.report_dir)
+        total_files = len(results)
 
         if total_files == 0:
             self.logger.info("No HTML files found to process")
             return 0
 
-        # Get the pattern for processing
-        pattern = self._link_pattern.pattern
-
         total_fixes = 0
         fixed_files = 0
         errors = []
 
-        # Process files in parallel
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(_fix_single_file, html_file, cli_args.report_dir, pattern) for html_file in html_files]
-
-            for future in as_completed(futures):
-                result = future.result()
-
-                if not result.success:
-                    errors.append(result.error_message)
-                    if self._verbose:
-                        self.logger.error(result.error_message)
-                elif result.fixes_count > 0:
-                    fixed_files += 1
-                    total_fixes += result.fixes_count
-                    self.log_info(f"Fixed {result.fixes_count} links in {result.file_path}")
+        for result in results:
+            if not result.success:
+                errors.append(result.error_message)
+                if self._verbose:
+                    self.logger.error(result.error_message)
+            elif result.fixes_count > 0:
+                fixed_files += 1
+                total_fixes += result.fixes_count
+                self.log_info(f"Fixed {result.fixes_count} links in {result.file_path}")
 
         self.logger.info(f"Processed {total_files} HTML files")
         self.logger.info(f"Fixed {total_fixes} links in {fixed_files} files")
