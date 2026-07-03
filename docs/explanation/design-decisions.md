@@ -43,7 +43,7 @@ The `Artifact` dataclass replaced build-system-specific mechanisms (like `Includ
 
 ## SPLPaths Convention
 
-The directory layout convention (`<build_dir>/<variant>/<platform>/<build_type>/`) is owned by yanga-core's `SPLPaths`, not by build backends. This ensures that any code needing component build paths (e.g., `GenerateReportConfig`) can resolve them without importing build-system-specific code.
+The directory layout convention (`<build_dir>/variants/<variant>/<platform>/<build_type>/`) is owned by yanga-core's `SPLPaths`, not by build backends. This ensures that any code needing component build paths (e.g., `GenerateReportConfig`) can resolve them without importing build-system-specific code.
 
 ## ConfigFile Mechanism
 

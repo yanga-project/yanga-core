@@ -44,14 +44,18 @@ An `Artifact` represents a step-produced output that other steps or the build sy
 
 ```
 <project_root>/
-  .yanga/                          # build_dir (or build/)
-    <variant>/
-      <platform>/
-        <build_type>/              # variant_build_dir
-          <component_name>/        # component_build_dir
-          kconfig/                 # KConfigGen output
-          report_config.json       # GenerateReportConfig output
-    external/                      # external_dependencies_dir
+  .yanga/
+    build/                         # build_dir (or <project_root>/build/)
+      variants/
+        <variant>/
+          <platform>/
+            <build_type>/          # variant_build_dir
+              <component_name>/    # component_build_dir
+              kconfig/             # KConfigGen output
+              report_config.json   # GenerateReportConfig output
+      spl/                         # spl_build_dir
+        reports/                   # spl_report_dir (the SPL overview site)
+    ext/                           # external_dependencies_dir
 ```
 
 This convention is build-system-agnostic. Build backends (e.g., CMake) may add their own overlays on top of these paths.

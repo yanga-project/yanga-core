@@ -15,6 +15,9 @@ from py_app_dev.core.exceptions import UserNotificationException
 from .config import StringableEnum, stringable_enum_field_metadata
 from .execution_context import UserRequest
 
+#: File name of the generated report config; the single definition for every scope's generator.
+REPORT_CONFIG_FILE_NAME = "report_config.json"
+
 
 @dataclass
 class FeaturesReportRelevantFile:
@@ -160,6 +163,7 @@ class ReportData(BaseConfigJSONMixin):
     scope: ReportScope = field(default=ReportScope.VARIANT, metadata=stringable_enum_field_metadata(ReportScope))
     variant_name: str | None = None
     platform_name: str | None = None
+    build_type: str | None = None
     #: Product-line display name; set only for SPL reports.
     project_name: str | None = None
     # Set only for single component reports
@@ -178,7 +182,7 @@ class ReportData(BaseConfigJSONMixin):
         return self.scope == ReportScope.VARIANT
 
     @property
-    def has_scope_spl(self) -> bool:
+    def has_spl_scope(self) -> bool:
         return self.scope == ReportScope.SPL
 
     @property

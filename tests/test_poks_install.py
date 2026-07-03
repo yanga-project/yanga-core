@@ -289,6 +289,6 @@ def test_poks_install_variant_specific_directories(tmp_path: Path) -> None:
         config = poks_install._merge_manifests()
         poks_install._generate_poks_config(config)
 
-        expected_file = tmp_path / ".yanga" / "build" / variant_name / "test_platform" / "poks.json"
+        expected_file = tmp_path / ".yanga" / "build" / "variants" / variant_name / "test_platform" / "poks.json"
         assert expected_file.exists()
         assert poks_install._output_config_file == expected_file

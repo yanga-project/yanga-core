@@ -11,5 +11,6 @@ configure-dependencies
 create-variant
 create-custom-step
 feature-model
+spl-report
 contributing
 ```

@@ -205,12 +205,12 @@ def test_west_install_variant_specific_directories(tmp_path: Path) -> None:
         merged_manifest = west_install._merge_manifests()
         west_install._write_west_manifest_file(merged_manifest)
 
-        expected_west_file = project_dir / ".yanga" / "build" / variant_name / "linux_platform" / "west.yaml"
+        expected_west_file = project_dir / ".yanga" / "build" / "variants" / variant_name / "linux_platform" / "west.yaml"
         assert expected_west_file.exists(), f"west.yaml should exist for variant {variant_name}"
         assert west_install._output_manifest_file == expected_west_file
 
-    variant_a_file = project_dir / ".yanga" / "build" / "variant_a" / "linux_platform" / "west.yaml"
-    variant_b_file = project_dir / ".yanga" / "build" / "variant_b" / "linux_platform" / "west.yaml"
+    variant_a_file = project_dir / ".yanga" / "build" / "variants" / "variant_a" / "linux_platform" / "west.yaml"
+    variant_b_file = project_dir / ".yanga" / "build" / "variants" / "variant_b" / "linux_platform" / "west.yaml"
     assert variant_a_file.exists()
     assert variant_b_file.exists()
 
@@ -257,8 +257,8 @@ def test_west_install_uses_shared_external_directory(tmp_path: Path) -> None:
     assert west_install_a.artifacts_locator.external_dependencies_dir == expected_external_dir
     assert west_install_b.artifacts_locator.external_dependencies_dir == expected_external_dir
 
-    expected_west_a = project_dir / ".yanga" / "build" / "variant_a" / "test_platform" / "west.yaml"
-    expected_west_b = project_dir / ".yanga" / "build" / "variant_b" / "test_platform" / "west.yaml"
+    expected_west_a = project_dir / ".yanga" / "build" / "variants" / "variant_a" / "test_platform" / "west.yaml"
+    expected_west_b = project_dir / ".yanga" / "build" / "variants" / "variant_b" / "test_platform" / "west.yaml"
     assert west_install_a._output_manifest_file == expected_west_a
     assert west_install_b._output_manifest_file == expected_west_b
 

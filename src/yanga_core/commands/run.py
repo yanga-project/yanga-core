@@ -86,9 +86,10 @@ class RunCommand(Command):
         return 0
 
     def do_run(self, config: RunCommandConfig) -> int:
+        ini_config = YangaIni.from_toml_or_ini(config.project_dir / "yanga.ini", config.project_dir / "pyproject.toml")
         if config.pristine:
-            self._run_pristine(config)
-        project_slurper = self.create_project_slurper(config.project_dir)
+            self._run_pristine(config, ini_config)
+        project_slurper = self.create_project_slurper(config.project_dir, ini_config)
         if config.print:
             project_slurper.print_project_info()
             return 0
@@ -123,12 +124,15 @@ class RunCommand(Command):
         return 0
 
     @staticmethod
-    def _run_pristine(config: RunCommandConfig) -> None:
-        ini_config = YangaIni.from_toml_or_ini(config.project_dir / "yanga.ini", config.project_dir / "pyproject.toml")
+    def _run_pristine(config: RunCommandConfig, ini_config: YangaIni) -> None:
         spl_paths = SPLPaths(config.project_dir, config.variant_name, config.platform, config.build_type, create_yanga_build_dir=ini_config.create_yanga_build_dir)
         target_dir = spl_paths.variant_build_dir.resolve(strict=False)
         yanga_build_root = spl_paths.build_dir.resolve(strict=False)
-        if target_dir != yanga_build_root and not target_dir.is_relative_to(yanga_build_root):
+        variants_root = spl_paths.variants_build_root.resolve(strict=False)
+        # A scoped wipe must stay strictly inside 'variants/'; a name like '..' would otherwise
+        # collapse onto the build root and wipe the SPL build as well.
+        is_scoped = any([config.variant_name, config.platform, config.build_type])
+        if is_scoped and (target_dir == variants_root or not target_dir.is_relative_to(variants_root)):
             raise UserNotificationException(f"Refusing to wipe {target_dir}: it escapes yanga build root {yanga_build_root}.")
         if not target_dir.exists():
             return
@@ -138,8 +142,9 @@ class RunCommand(Command):
             raise UserNotificationException(f"Failed to wipe {target_dir}: {e}") from e
 
     @staticmethod
-    def create_project_slurper(project_dir: Path) -> YangaProjectSlurper:
-        ini_config = YangaIni.from_toml_or_ini(project_dir / "yanga.ini", project_dir / "pyproject.toml")
+    def create_project_slurper(project_dir: Path, ini_config: YangaIni | None = None) -> YangaProjectSlurper:
+        if ini_config is None:
+            ini_config = YangaIni.from_toml_or_ini(project_dir / "yanga.ini", project_dir / "pyproject.toml")
         return YangaProjectSlurper(project_dir, ini_config.configuration_file_name, create_yanga_build_dir=ini_config.create_yanga_build_dir, exclude_dirs=ini_config.exclude_dirs)
 
     @staticmethod

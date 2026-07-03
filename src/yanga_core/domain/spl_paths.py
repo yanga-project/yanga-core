@@ -8,6 +8,9 @@ from pypeline.domain.artifacts import ProjectArtifactsLocator
 class SPLPaths(ProjectArtifactsLocator):
     """Provides resolved paths for an SPL project build context."""
 
+    #: Name of the reports directory inside a build scope (variant build dir, SPL build dir).
+    REPORTS_DIR_NAME = "reports"
+
     def __init__(
         self,
         project_root_dir: Path,
@@ -21,11 +24,24 @@ class SPLPaths(ProjectArtifactsLocator):
         self.build_dir = yanga_out_dir / "build" if create_yanga_build_dir else project_root_dir / "build"
         self.variants_dir = project_root_dir / "variants"
         self.platforms_dir = project_root_dir / "platforms"
-        self.variant_build_dir: Path = self.determine_variant_build_dir(variant_name, platform_name, build_type, self.build_dir)
+        #: Root of all variant-scope build directories; sibling of the SPL scope build dir.
+        self.variants_build_root = self.build_dir / "variants"
+        # Variant builds are namespaced by variant, platform, build type (whichever are set).
+        parts = [part for part in (variant_name, platform_name, build_type) if part]
+        self.variant_build_dir: Path = self.variants_build_root.joinpath(*parts) if parts else self.build_dir
         self.variant_dir: Path | None = self.variants_dir / variant_name if variant_name else None
         self.external_dependencies_dir = yanga_out_dir / "ext" if create_yanga_build_dir else self.build_dir / "ext"
+        #: SPL scope build directory; sibling of the variant builds.
+        self.spl_build_dir = self.build_dir / "spl"
+        #: The self-contained SPL overview site: assembled here, publishable verbatim.
+        self.spl_report_dir = self.spl_build_dir / self.REPORTS_DIR_NAME
         scripts_dir = "Scripts" if sys.platform.startswith("win32") else "bin"
         self.venv_scripts_dir = self.project_root_dir.joinpath(".venv").joinpath(scripts_dir)
+
+    @property
+    def variant_reports_dir(self) -> Path:
+        """Where a variant build renders its report; the SPL report collector discovers these."""
+        return self.variant_build_dir / self.REPORTS_DIR_NAME
 
     def locate_artifact(self, artifact: str, first_search_paths: list[Path | None]) -> Path:
         search_paths: list[Path | None] = []
@@ -47,15 +63,3 @@ class SPLPaths(ProjectArtifactsLocator):
 
     def get_component_build_dir(self, component_name: str) -> Path:
         return self.variant_build_dir / component_name
-
-    @staticmethod
-    def determine_variant_build_dir(variant_name: str | None, platform_name: str | None, build_type: str | None, build_dir: Path) -> Path:
-        # build up the path in order: variant, platform, build_type
-        parts = []
-        if variant_name:
-            parts.append(variant_name)
-        if platform_name:
-            parts.append(platform_name)
-        if build_type:
-            parts.append(build_type)
-        return build_dir.joinpath(*parts) if parts else build_dir

@@ -22,6 +22,7 @@ def env(tmp_path: Path) -> ExecutionContext:
     env.spl_paths.get_component_build_dir = lambda name: tmp_path / "build" / name
     env.data_registry = DataRegistry()
     env.platform = None
+    env.user_request = UserRequest(UserRequestScope.VARIANT, variant_name="mock_variant")
     return env
 
 
@@ -36,6 +37,7 @@ def env_with_platform(tmp_path: Path) -> ExecutionContext:
     env.data_registry = DataRegistry()
     env.platform = Mock()
     env.platform.name = "test_platform"
+    env.user_request = UserRequest(UserRequestScope.VARIANT, variant_name="mock_variant", build_type="Debug")
     return env
 
 
@@ -122,6 +124,7 @@ def test_generate_report_config_with_components(env_with_platform: ExecutionCont
 
     assert config_data.variant_name == "mock_variant"
     assert config_data.platform_name == "test_platform"
+    assert config_data.build_type == "Debug"
     assert len(config_data.components) == 2
 
     component1_config = assert_element_of_type(config_data.components, ComponentReportData, lambda c: c.name == "component1")

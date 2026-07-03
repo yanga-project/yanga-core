@@ -96,9 +96,11 @@ A `PlatformConfig` defines a target environment:
 | Property | Value |
 |----------|-------|
 | `project_root_dir` | Project root |
-| `build_dir` | `<project_root>/.yanga` or `<project_root>/build` |
-| `variant_build_dir` | `<build_dir>/<variant>/<platform>/<build_type>` |
-| `external_dependencies_dir` | `<build_dir>/external` |
+| `build_dir` | `<project_root>/.yanga/build` or `<project_root>/build` |
+| `variant_build_dir` | `<build_dir>/variants/<variant>/<platform>/<build_type>` |
+| `spl_build_dir` | `<build_dir>/spl` |
+| `spl_report_dir` | `<spl_build_dir>/reports` |
+| `external_dependencies_dir` | `<project_root>/.yanga/ext` or `<build_dir>/ext` |
 
 Methods:
 - `locate_artifact(name, search_paths)` — find a file by name across variant, project, and platform directories

@@ -9,7 +9,6 @@ also open in a new tab.
 
 import re
 from argparse import ArgumentParser, Namespace
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -39,7 +38,7 @@ def _create_replacement(match: re.Match[str], relative_depth: int) -> str:
     return f'href="{fixed_path}" target="_blank" rel="noopener"'
 
 
-def _fix_single_file(html_file: Path, report_root: Path, pattern: str) -> FileProcessResult:
+def _fix_single_file(html_file: Path, report_root: Path, pattern: re.Pattern[str]) -> FileProcessResult:
     """Process a single HTML file - designed for parallel execution."""
     try:
         content = html_file.read_text(encoding="utf-8")
@@ -51,9 +50,7 @@ def _fix_single_file(html_file: Path, report_root: Path, pattern: str) -> FilePr
     # Calculate the relative path prefix for this file
     relative_depth = len(html_file.relative_to(report_root).parts) - 1
 
-    # Use regex substitution with a lambda that calls our replacement function
-    link_pattern = re.compile(pattern)
-    modified_content, fixes_count = link_pattern.subn(lambda match: _create_replacement(match, relative_depth), content)
+    modified_content, fixes_count = pattern.subn(lambda match: _create_replacement(match, relative_depth), content)
 
     if fixes_count == 0:
         return FileProcessResult(html_file, 0, True)
@@ -75,7 +72,7 @@ def fix_html_links(report_dir: Path) -> list[FileProcessResult]:
     """Fix all marker links under a report root; shared by the CLI command and the SPL report step."""
     html_files = list(report_dir.rglob("*.html"))
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(_fix_single_file, html_file, report_dir, LINK_PATTERN.pattern) for html_file in html_files]
+        futures = [executor.submit(_fix_single_file, html_file, report_dir, LINK_PATTERN) for html_file in html_files]
         return [future.result() for future in as_completed(futures)]
 
 
@@ -151,10 +148,6 @@ class FixHtmlLinksCommand(Command):
                 self.logger.info("Use --verbose flag to see detailed error messages")
 
         return 1 if errors else 0
-
-    def _find_html_files(self, root_dir: Path) -> Iterator[Path]:
-        """Efficiently find all HTML files in the directory tree."""
-        return root_dir.rglob("*.html")
 
     def _register_arguments(self, parser: ArgumentParser) -> None:
         register_arguments_for_config_dataclass(parser, CommandArgs)

@@ -7,6 +7,7 @@ from pypeline.domain.pipeline import PipelineStep
 from yanga_core.domain.execution_context import ExecutionContext
 from yanga_core.domain.generated_file import GeneratedFile
 from yanga_core.domain.reports import (
+    REPORT_CONFIG_FILE_NAME,
     ComponentReportData,
     FeaturesReportRelevantFile,
     ReportData,
@@ -28,7 +29,7 @@ class GenerateReportConfig(PipelineStep[ExecutionContext]):
 
     @property
     def report_config_file(self) -> Path:
-        return self.output_dir / "report_config.json"
+        return self.output_dir / REPORT_CONFIG_FILE_NAME
 
     def get_name(self) -> str:
         return self.__class__.__name__
@@ -51,6 +52,7 @@ class GenerateReportConfig(PipelineStep[ExecutionContext]):
         config = ReportData(
             variant_name=self.execution_context.variant_name or "",
             platform_name=self.execution_context.platform.name if self.execution_context.platform else "",
+            build_type=self.execution_context.user_request.build_type,
             project_dir=self.execution_context.project_root_dir,
             components=[
                 ComponentReportData(
