@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.9.0 (2026-07-04)
+
+### Features
+
+- Add support for spl reports ([`7aa00d9`](https://github.com/yanga-project/yanga-core/commit/7aa00d944a7e47c7b28ba47bc6fda05f6b014571))
+- Open external report links in a new tab ([`2ca8427`](https://github.com/yanga-project/yanga-core/commit/2ca8427593bffdbf1638794872b0c117888d6883))
+- Support component, variant and spl report scopes ([`d994e3e`](https://github.com/yanga-project/yanga-core/commit/d994e3ec0890b1b4f985ad5f1aefaab9f924b8b7))
+
 ## v0.8.0 (2026-06-22)
 
 ### Features
