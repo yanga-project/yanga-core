@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.10.0 (2026-09-03)
+
+### Features
+
+- Detect multiple pipeline declarations ([`effc927`](https://github.com/yanga-project/yanga-core/commit/effc9279dd62d1685951e162d0667c84ee4d594b))
+- Add platform specific pipeline support ([`a1301ee`](https://github.com/yanga-project/yanga-core/commit/a1301eeae35367eaacacaeefa1ea4615ef7e3aa6))
+- Add support for pipelime file include and step selection ([`49b2475`](https://github.com/yanga-project/yanga-core/commit/49b2475dda4b0663bf01fbea2df7d76760232f17))
+
 ## v0.9.0 (2026-07-04)
 
 ### Features
