@@ -107,6 +107,8 @@ class PlatformConfig(ConfigElement):
     description: str | None = None
     #: Build system generators
     generators: GenericPipelineConfig = field(default_factory=list)
+    #: Pipeline run for this platform instead of the project one
+    pipeline: PipelineConfig | None = None
     #: Supported build types
     build_types: list[str] = field(default_factory=list)
     #: Supported targets. Either a flat list (applies to both scopes) or a

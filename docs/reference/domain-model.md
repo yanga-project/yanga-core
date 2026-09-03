@@ -84,6 +84,7 @@ A `PlatformConfig` defines a target environment:
 | `name` | `str` | Platform name (required) |
 | `description` | `str` | Human-readable description |
 | `generators` | `list[GenericPipelineConfig]` | Build system generators for this platform |
+| `pipeline` | `PipelineConfig` | Pipeline run for this platform instead of the project one |
 | `build_types` | `list[str]` | Allowed build types (e.g., `Debug`, `Release`) |
 | `build_targets` | `list[str]` | Available build targets |
 | `configs` | `list[ConfigFile]` | Platform-level config entries |

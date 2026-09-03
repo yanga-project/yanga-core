@@ -179,3 +179,76 @@ This is staged: (A) move path and include resolution off the slurp into the reso
 behaviour-preserving except error timing; (B) add the `external:` root spec; (C) allow
 components to be registered at run time. This decision records the end state; each
 stage lands behind its own plan.
+
+## Platform-Scoped Pipeline
+
+A platform may declare its own `pipeline`, which replaces the project pipeline for that
+platform. Nothing else in the configuration scopes a pipeline.
+
+### Why
+
+The project pipeline runs for every platform. That holds as long as every platform is built
+the same way: install tools, generate the KConfig header, configure and build through
+CMake. A Zephyr platform breaks it. Zephyr solves KConfig itself, so `KConfigGen` must not
+run, and the build stage is a west workspace plus `west build` rather than CMake. Without a
+scoped pipeline those steps land in the one project pipeline and every step grows a guard
+on the platform name: variability moves out of the declarative configuration into Python
+conditionals, and the project pipeline stops reading as a statement of how any platform
+builds.
+
+### Why the platform, not the variant
+
+A variant states *what* is built: components, feature selection, configs. A platform states
+*how*: toolchain, build types, targets, and already a scoped `generators` list. A pipeline is
+"how". The Zephyr case confirms it: the pipeline changes for every variant that targets
+Zephyr and for no variant in particular. A variant-scoped pipeline would force a
+`DiscoZephyr` variant that clones Disco's component list only to carry a different pipeline.
+
+The cases that look like they want a variant pipeline resolve elsewhere. Per-product delivery
+steps (signing, packaging) are one shared step parameterised through the variant's
+`configs`. A variant needing an extra generation stage is really a component needing it, and
+steps already see the selected component set. A composite product built from several
+variants is the SPL scope, which the project pipeline run without a variant already is. An
+inherited product with a legacy build differs in build driver and toolchain, which is a
+platform. The one case that does not resolve, a variant that must never run a step, is not
+known to occur; if it does, the same field on `VariantConfig` with a fixed whole-field
+precedence is the shape, not a merge.
+
+### Why replace, not layer
+
+Layering needs an anchor vocabulary the moment a platform wants a step in the middle
+("after KConfigGen"), plus precedence rules and an answer for a renamed or absent anchor.
+That is a merge algorithm, out of proportion to the need. Replacement was only expensive
+because it duplicated the shared steps, and `include:` removes that: a platform pipeline is a
+full, flat list whose bulk is included from shared fragments, and position in the list is the
+anchor.
+
+The alternative of one project pipeline with a per-step platform filter was rejected: it
+turns the project pipeline into the union of every backend's steps, it puts the Zephyr steps
+in the root file instead of next to the Zephyr board configuration, and the filter key would
+have to live on pypeline's step entry, which stays domain-neutral.
+
+### The shape
+
+- `PlatformConfig.pipeline: PipelineConfig | None`, the same type as the project field.
+- The slurper expands a platform pipeline the way it expands the project one, eagerly at
+  load: `include:` paths are resolved through `SPLPaths.locate_artifact` with the declaring
+  `yanga.yaml` as the first anchor, then pypeline's `assemble_pipeline` splices the fragments.
+- The run command asks the slurper for the pipeline of the selected platform: the platform's
+  own if set, else the project's. No platform selected means the project pipeline.
+- `--print` lists the project pipeline and each platform's own pipeline. It does not compute
+  an effective pipeline per platform; the output mirrors the configuration.
+
+### Consequences
+
+- A step meant for every platform, such as `GenerateReportConfig`, lives in a shared fragment
+  that each platform pipeline includes, not in "the" pipeline. This is the discipline
+  `include:` was introduced for.
+- A broken `include:` in one platform's pipeline fails every run, the same way a duplicate
+  component in an unrelated `yanga.yaml` already does. Errors surface at load rather than on
+  the first run of that platform.
+- A top-level `pipeline:` inside `platforms/<name>/yanga.yaml` is still the *project*
+  pipeline under the existing first-wins rule across files, not a platform one. Only the
+  `pipeline` field under a `platforms:` entry is platform-scoped.
+- Nothing changes for platforms that declare no pipeline, and nothing changes in the GUI,
+  which only calls the run command.

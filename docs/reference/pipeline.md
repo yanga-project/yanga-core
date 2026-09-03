@@ -29,6 +29,28 @@ Each step is defined by:
 - `step` — the Python class name
 - `module` — the Python module where the class is located
 
+## Platform-Specific Pipeline
+
+A platform whose build works differently from the rest of the project declares its own `pipeline`. It **replaces** the project pipeline for that platform; there is no merging. Platforms without one run the project pipeline, and so does a run with no platform selected.
+
+```yaml
+# platforms/zephyr/yanga.yaml
+platforms:
+  - name: zephyr
+    pipeline:
+      install:
+        - include: pipeline/bootstrap.yaml   # shared with the other platforms
+        - step: SetupWestWorkspace
+          run: west update
+      build:
+        - step: ZephyrBuild
+          file: steps/zephyr_build.py
+```
+
+Steps wanted on every platform go into a shared fragment that each platform pipeline includes (see {doc}`../how-to/share-pipeline-fragments`). An `include:` inside a platform pipeline is looked up relative to the `yanga.yaml` that declares the platform, then the project root, then `platforms/`.
+
+`yanga run --print` lists the project pipeline and then each platform's own pipeline; it does not compute which one a given platform would run.
+
 ## Execution Flow
 
 1. `RunCommand` creates a `YangaProjectSlurper` to discover and parse all `yanga.yaml` files

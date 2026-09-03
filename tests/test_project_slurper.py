@@ -1,7 +1,13 @@
 import textwrap
 from pathlib import Path
 
+import pytest
+from py_app_dev.core.exceptions import UserNotificationException
+from pypeline.domain.pipeline import PipelineStepConfig
+
+from yanga_core.commands.run import RunCommand
 from yanga_core.domain.config import ComponentConfig, PlatformConfig, VariantConfig, VariantPlatformsConfig
+from yanga_core.domain.execution_context import UserRequest, UserRequestScope
 from yanga_core.domain.project_slurper import YangaProjectSlurper
 
 
@@ -110,4 +116,68 @@ def test_pipeline_include_resolves_for_a_nested_config(tmp_path: Path) -> None:
 
     project_slurper = YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
 
-    assert [step.step for step in project_slurper.pipeline or []] == ["CreateVEnv", "Build"]
+    assert [step.step for step in project_slurper.project_pipeline or []] == ["CreateVEnv", "Build"]
+
+
+@pytest.mark.parametrize(
+    ("platform_name", "expected_steps"),
+    [
+        ("zephyr", ["ZephyrBuild"]),
+        ("gtest", ["Build"]),
+        (None, ["Build"]),
+    ],
+)
+def test_get_pipeline_prefers_the_platform_pipeline(tmp_path: Path, platform_name: str | None, expected_steps: list[str]) -> None:
+    """
+    A platform that builds differently from the rest of the project declares its own pipeline,
+    which replaces the project one for that platform::
+
+        platforms:
+          - name: zephyr
+            pipeline:
+              - include: pipeline/bootstrap.yaml
+              - step: ZephyrBuild
+                module: my_project.steps
+
+    Platforms without one, and runs without a platform, use the project pipeline.
+    """
+    project_slurper = YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
+    project_slurper.project_pipeline = [PipelineStepConfig(step="Build")]
+    project_slurper.platforms = [PlatformConfig(name="zephyr", pipeline=[PipelineStepConfig(step="ZephyrBuild")]), PlatformConfig(name="gtest")]
+
+    assert [step.step for step in project_slurper.get_pipeline(platform_name) or []] == expected_steps
+
+
+def test_platform_pipeline_include_resolves_against_the_project_root(tmp_path: Path) -> None:
+    (tmp_path / "pipeline").mkdir()
+    (tmp_path / "pipeline" / "bootstrap.yaml").write_text(
+        textwrap.dedent("""\
+            pipeline:
+                - step: CreateVEnv
+                  run: echo "venv"
+            """)
+    )
+    platform_dir = tmp_path / "platforms" / "zephyr"
+    platform_dir.mkdir(parents=True)
+    (platform_dir / "yanga.yaml").write_text(
+        textwrap.dedent("""\
+            platforms:
+                - name: zephyr
+                  pipeline:
+                    - include: pipeline/bootstrap.yaml
+                    - step: ZephyrBuild
+                      run: echo "build"
+            """)
+    )
+
+    project_slurper = YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
+
+    assert [step.step for step in project_slurper.get_pipeline("zephyr") or []] == ["CreateVEnv", "ZephyrBuild"]
+
+
+def test_run_without_any_pipeline_fails_for_a_selected_platform(tmp_path: Path) -> None:
+    project_slurper = YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
+    project_slurper.platforms = [PlatformConfig(name="zephyr")]
+
+    with pytest.raises(UserNotificationException, match="No pipeline found"):
+        RunCommand.execute_pipeline_steps(tmp_path, project_slurper, UserRequest(scope=UserRequestScope.VARIANT), platform_name="zephyr")

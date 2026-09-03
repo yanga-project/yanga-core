@@ -26,7 +26,7 @@ class YangaProjectSlurper:
         # Merge the exclude directories with the hardcoded ones
         exclude = list({*exclude, *DEFAULT_EXCLUDE_DIRS})
         self.user_configs: list[YangaUserConfig] = YangaConfigSlurper(project_dir=self.project_dir, exclude_dirs=exclude, configuration_file_name=configuration_file_name).slurp()
-        self.pipeline: Optional[PipelineConfig] = self._find_pipeline_config(self.user_configs)
+        self.project_pipeline: Optional[PipelineConfig] = self._find_project_pipeline_config(self.user_configs)
         self.variants: list[VariantConfig] = self._collect_variants(self.user_configs)
         self.platforms: list[PlatformConfig] = self._collect_platforms(self.user_configs)
         self.components: list[ComponentConfig] = self._collect_components(self.user_configs)
@@ -70,6 +70,13 @@ class YangaProjectSlurper:
         """
         for config in self.components:
             data_registry.insert(config, provider=type(self).__name__)
+
+    def get_pipeline(self, platform_name: Optional[str]) -> Optional[PipelineConfig]:
+        """The selected platform's own pipeline if it declares one, else the project pipeline."""
+        platform = self.get_platform(platform_name)
+        if platform and platform.pipeline:
+            return platform.pipeline
+        return self.project_pipeline
 
     def get_platform(self, platform_name: Optional[str]) -> Optional[PlatformConfig]:
         if not platform_name:
@@ -120,15 +127,18 @@ class YangaProjectSlurper:
                 components.append(component)
         return components
 
-    def _find_pipeline_config(self, user_configs: list[YangaUserConfig]) -> Optional[PipelineConfig]:
+    def _find_project_pipeline_config(self, user_configs: list[YangaUserConfig]) -> Optional[PipelineConfig]:
         for user_config in user_configs:
-            if not user_config.pipeline:
-                continue
-            if not user_config.file:
-                return user_config.pipeline
-            self._resolve_include_paths(user_config.pipeline, user_config.file)
-            return assemble_pipeline(user_config.pipeline, user_config.file)
+            if user_config.pipeline:
+                return self._assemble_pipeline(user_config.pipeline, user_config.file)
         return None
+
+    def _assemble_pipeline(self, pipeline: PipelineConfig, declaring_file: Optional[Path]) -> PipelineConfig:
+        """Expand the ``include:`` entries; a pipeline built in memory has no file to resolve them against."""
+        if not declaring_file:
+            return pipeline
+        self._resolve_include_paths(pipeline, declaring_file)
+        return assemble_pipeline(pipeline, declaring_file)
 
     def _resolve_include_paths(self, pipeline: PipelineConfig, declaring_file: Path) -> None:
         """
@@ -162,6 +172,8 @@ class YangaProjectSlurper:
             for platform in user_config.platforms:
                 # TODO: shall the project slurper be responsible for updating the source file for the configuration?
                 platform.file = user_config.file
+                if platform.pipeline:
+                    platform.pipeline = self._assemble_pipeline(platform.pipeline, platform.file)
                 platforms.append(platform)
         return platforms
 
@@ -176,11 +188,18 @@ class YangaProjectSlurper:
         self.logger.info(f"Found {len(self.platforms)} platforms(s):")
         for platform in self.platforms:
             self.logger.info(f"  - {platform.name}")
-        if self.pipeline:
+        if self.project_pipeline:
             self.logger.info("Found pipeline config:")
-            for group, step_configs in PipelineConfigIterator(self.pipeline):
-                if group:
-                    logger.info(f"    Group: {group}")
-                for step_config in step_configs:
-                    logger.info(f"        {step_config.step}")
+            self._print_pipeline(self.project_pipeline)
+        for platform in self.platforms:
+            if platform.pipeline:
+                self.logger.info(f"Platform '{platform.name}' pipeline:")
+                self._print_pipeline(platform.pipeline)
         self.logger.info("-" * 80)
+
+    def _print_pipeline(self, pipeline: PipelineConfig) -> None:
+        for group, step_configs in PipelineConfigIterator(pipeline):
+            if group:
+                self.logger.info(f"    Group: {group}")
+            for step_config in step_configs:
+                self.logger.info(f"        {step_config.step}")

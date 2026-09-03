@@ -158,10 +158,11 @@ class RunCommand(Command):
         force_run: bool = False,
         single: bool = False,
     ) -> None:
-        if not project_slurper.pipeline:
+        pipeline = project_slurper.get_pipeline(platform_name)
+        if not pipeline:
             raise UserNotificationException("No pipeline found in the configuration.")
         # Schedule the steps to run
-        steps_references = PipelineScheduler[ExecutionContext](project_slurper.pipeline, project_dir).get_steps_to_run([step] if step else None, single)
+        steps_references = PipelineScheduler[ExecutionContext](pipeline, project_dir).get_steps_to_run([step] if step else None, single)
         if not steps_references:
             if step:
                 raise UserNotificationException(f"Step '{step}' not found in the pipeline.")
