@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 from py_app_dev.core.data_registry import DataRegistry
 from py_app_dev.core.exceptions import UserNotificationException
@@ -19,14 +18,14 @@ __all__ = ["YangaProjectSlurper"]
 
 
 class YangaProjectSlurper:
-    def __init__(self, project_dir: Path, configuration_file_name: Optional[str] = None, exclude_dirs: Optional[list[str]] = None, create_yanga_build_dir: bool = True) -> None:
+    def __init__(self, project_dir: Path, configuration_file_name: str | None = None, exclude_dirs: list[str] | None = None, create_yanga_build_dir: bool = True) -> None:
         self.logger = logger.bind()
         self.project_dir = project_dir
         exclude = exclude_dirs if exclude_dirs else []
         # Merge the exclude directories with the hardcoded ones
         exclude = list({*exclude, *DEFAULT_EXCLUDE_DIRS})
         self.user_configs: list[YangaUserConfig] = YangaConfigSlurper(project_dir=self.project_dir, exclude_dirs=exclude, configuration_file_name=configuration_file_name).slurp()
-        self.project_pipeline: Optional[PipelineConfig] = self._find_project_pipeline_config(self.user_configs)
+        self.project_pipeline: PipelineConfig | None = self._find_project_pipeline_config(self.user_configs)
         self.variants: list[VariantConfig] = self._collect_variants(self.user_configs)
         self.platforms: list[PlatformConfig] = self._collect_platforms(self.user_configs)
         self.components: list[ComponentConfig] = self._collect_components(self.user_configs)
@@ -51,12 +50,12 @@ class YangaProjectSlurper:
 
         return variant
 
-    def get_variant_config_file(self, variant_name: str) -> Optional[Path]:
+    def get_variant_config_file(self, variant_name: str) -> Path | None:
         variant = self.get_variant_config(variant_name)
         spl_paths = SPLPaths(self.project_dir, variant_name, None, None)
         return spl_paths.locate_artifact(variant.features_selection_file, [variant.file]) if variant.features_selection_file else None
 
-    def get_selected_component_names(self, variant_name: str, platform_name: Optional[str] = None) -> list[str]:
+    def get_selected_component_names(self, variant_name: str, platform_name: str | None = None) -> list[str]:
         return self._collect_selected_component_names(self.get_variant_config(variant_name), platform_name)
 
     def register_components(self, data_registry: DataRegistry) -> None:
@@ -71,14 +70,14 @@ class YangaProjectSlurper:
         for config in self.components:
             data_registry.insert(config, provider=type(self).__name__)
 
-    def get_pipeline(self, platform_name: Optional[str]) -> Optional[PipelineConfig]:
+    def get_pipeline(self, platform_name: str | None) -> PipelineConfig | None:
         """The selected platform's own pipeline if it declares one, else the project pipeline."""
         platform = self.get_platform(platform_name)
         if platform and platform.pipeline:
             return platform.pipeline
         return self.project_pipeline
 
-    def get_platform(self, platform_name: Optional[str]) -> Optional[PlatformConfig]:
+    def get_platform(self, platform_name: str | None) -> PlatformConfig | None:
         if not platform_name:
             return None
         platform = next((p for p in self.platforms if p.name == platform_name), None)
@@ -86,7 +85,7 @@ class YangaProjectSlurper:
             raise UserNotificationException(f"Platform '{platform_name}' not found in the configuration.")
         return platform
 
-    def _collect_selected_component_names(self, variant: VariantConfig, platform_name: Optional[str] = None) -> list[str]:
+    def _collect_selected_component_names(self, variant: VariantConfig, platform_name: str | None = None) -> list[str]:
         """
         Names of the components built for this variant/platform — the build scope.
 
@@ -127,13 +126,21 @@ class YangaProjectSlurper:
                 components.append(component)
         return components
 
-    def _find_project_pipeline_config(self, user_configs: list[YangaUserConfig]) -> Optional[PipelineConfig]:
+    def _find_project_pipeline_config(self, user_configs: list[YangaUserConfig]) -> PipelineConfig | None:
+        declarations: list[tuple[PipelineConfig, Path | None]] = []
         for user_config in user_configs:
             if user_config.pipeline:
-                return self._assemble_pipeline(user_config.pipeline, user_config.file)
-        return None
+                declarations.append((user_config.pipeline, user_config.file))
+        if len(declarations) > 1:
+            # The files are slurped in parallel, so without this the winner would be whichever parsed first.
+            files = ", ".join(sorted(str(file) for _, file in declarations))
+            raise UserNotificationException(f"The pipeline is defined in multiple configuration files. Only one may define it. See {files}")
+        if not declarations:
+            return None
+        pipeline, declaring_file = declarations[0]
+        return self._assemble_pipeline(pipeline, declaring_file)
 
-    def _assemble_pipeline(self, pipeline: PipelineConfig, declaring_file: Optional[Path]) -> PipelineConfig:
+    def _assemble_pipeline(self, pipeline: PipelineConfig, declaring_file: Path | None) -> PipelineConfig:
         """Expand the ``include:`` entries; a pipeline built in memory has no file to resolve them against."""
         if not declaring_file:
             return pipeline

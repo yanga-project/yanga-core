@@ -51,6 +51,8 @@ Steps wanted on every platform go into a shared fragment that each platform pipe
 
 `yanga run --print` lists the project pipeline and then each platform's own pipeline; it does not compute which one a given platform would run.
 
+Exactly one `yanga.yaml` may declare the top-level `pipeline:`; a second one is an error naming both files. Note that a top-level `pipeline:` in `platforms/zephyr/yanga.yaml` is a *project* pipeline, not the zephyr platform's — only the `pipeline` field under the `platforms:` entry is platform-scoped.
+
 ## Execution Flow
 
 1. `RunCommand` creates a `YangaProjectSlurper` to discover and parse all `yanga.yaml` files

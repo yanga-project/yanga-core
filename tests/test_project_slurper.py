@@ -129,8 +129,9 @@ def test_pipeline_include_resolves_for_a_nested_config(tmp_path: Path) -> None:
 )
 def test_get_pipeline_prefers_the_platform_pipeline(tmp_path: Path, platform_name: str | None, expected_steps: list[str]) -> None:
     """
-    A platform that builds differently from the rest of the project declares its own pipeline,
-    which replaces the project one for that platform::
+    A platform that builds differently from the rest of the project declares its own pipeline.
+
+    It replaces the project one for that platform::
 
         platforms:
           - name: zephyr
@@ -181,3 +182,34 @@ def test_run_without_any_pipeline_fails_for_a_selected_platform(tmp_path: Path) 
 
     with pytest.raises(UserNotificationException, match="No pipeline found"):
         RunCommand.execute_pipeline_steps(tmp_path, project_slurper, UserRequest(scope=UserRequestScope.VARIANT), platform_name="zephyr")
+
+
+def test_two_top_level_pipelines_is_an_error(tmp_path: Path) -> None:
+    """
+    Exactly one ``yanga.yaml`` may declare the top-level ``pipeline:``.
+
+    A platform pipeline goes under the ``platforms:`` entry. A top-level one in
+    ``platforms/<name>/yanga.yaml`` is a second project pipeline, and the files are slurped in
+    parallel, so silently keeping one of them is a coin toss.
+    """
+    (tmp_path / "yanga.yaml").write_text(
+        textwrap.dedent("""\
+            pipeline:
+                - step: Build
+                  run: echo "build"
+            """)
+    )
+    platform_dir = tmp_path / "platforms" / "zephyr"
+    platform_dir.mkdir(parents=True)
+    (platform_dir / "yanga.yaml").write_text(
+        textwrap.dedent("""\
+            pipeline:
+                - step: ZephyrBuild
+                  run: echo "build"
+            """)
+    )
+
+    with pytest.raises(UserNotificationException, match="defined in multiple configuration files") as error:
+        YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
+
+    assert "platforms" in str(error.value), "the error must name both files"

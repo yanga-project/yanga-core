@@ -247,8 +247,9 @@ have to live on pypeline's step entry, which stays domain-neutral.
 - A broken `include:` in one platform's pipeline fails every run, the same way a duplicate
   component in an unrelated `yanga.yaml` already does. Errors surface at load rather than on
   the first run of that platform.
-- A top-level `pipeline:` inside `platforms/<name>/yanga.yaml` is still the *project*
-  pipeline under the existing first-wins rule across files, not a platform one. Only the
-  `pipeline` field under a `platforms:` entry is platform-scoped.
+- A top-level `pipeline:` inside `platforms/<name>/yanga.yaml` is a second *project*
+  pipeline, not a platform one, and is now an error naming every file that declares one.
+  It used to be resolved by a first-wins rule, which the parallel slurp made a coin toss.
+  Only the `pipeline` field under a `platforms:` entry is platform-scoped.
 - Nothing changes for platforms that declare no pipeline, and nothing changes in the GUI,
   which only calls the run command.
