@@ -10,6 +10,7 @@ Task-oriented guides for accomplishing specific goals with yanga-core.
 configure-dependencies
 create-variant
 create-custom-step
+share-pipeline-fragments
 feature-model
 spl-report
 contributing

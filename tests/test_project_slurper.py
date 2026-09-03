@@ -1,3 +1,4 @@
+import textwrap
 from pathlib import Path
 
 from yanga_core.domain.config import ComponentConfig, PlatformConfig, VariantConfig, VariantPlatformsConfig
@@ -83,3 +84,30 @@ def test_collect_selected_component_names_with_both_variant_and_platform_config_
     assert "variant_platform_component" in names_with_platform
     assert "platform_config_component" in names_with_platform
     assert len(names_with_platform) == 3
+
+
+def test_pipeline_include_resolves_for_a_nested_config(tmp_path: Path) -> None:
+    # A fragment named relative to the project root, included from a yanga.yaml that
+    # does not sit next to it: pypeline alone would look only next to the including file.
+    (tmp_path / "pipeline").mkdir()
+    (tmp_path / "pipeline" / "bootstrap.yaml").write_text(
+        textwrap.dedent("""\
+            pipeline:
+                - step: CreateVEnv
+                  run: echo "venv"
+            """)
+    )
+    variant_dir = tmp_path / "variants" / "Disco"
+    variant_dir.mkdir(parents=True)
+    (variant_dir / "yanga.yaml").write_text(
+        textwrap.dedent("""\
+            pipeline:
+                - include: pipeline/bootstrap.yaml
+                - step: Build
+                  run: echo "build"
+            """)
+    )
+
+    project_slurper = YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
+
+    assert [step.step for step in project_slurper.pipeline or []] == ["CreateVEnv", "Build"]

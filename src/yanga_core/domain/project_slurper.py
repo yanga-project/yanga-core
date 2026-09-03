@@ -4,7 +4,8 @@ from typing import Optional
 from py_app_dev.core.data_registry import DataRegistry
 from py_app_dev.core.exceptions import UserNotificationException
 from py_app_dev.core.logging import logger
-from pypeline.domain.pipeline import PipelineConfig, PipelineConfigIterator
+from pypeline.domain.config import assemble_pipeline
+from pypeline.domain.pipeline import IncludeSpec, PipelineConfig, PipelineConfigIterator
 
 from yanga_core.domain.spl_paths import SPLPaths
 
@@ -120,10 +121,32 @@ class YangaProjectSlurper:
         return components
 
     def _find_pipeline_config(self, user_configs: list[YangaUserConfig]) -> Optional[PipelineConfig]:
-        return next(
-            (user_config.pipeline for user_config in user_configs if user_config.pipeline),
-            None,
-        )
+        for user_config in user_configs:
+            if not user_config.pipeline:
+                continue
+            if not user_config.file:
+                return user_config.pipeline
+            self._resolve_include_paths(user_config.pipeline, user_config.file)
+            return assemble_pipeline(user_config.pipeline, user_config.file)
+        return None
+
+    def _resolve_include_paths(self, pipeline: PipelineConfig, declaring_file: Path) -> None:
+        """
+        Rewrite every ``include:`` to an absolute path, in place.
+
+        pypeline looks for a fragment next to the including file. A yanga fragment may also
+        live in the project root or in ``platforms/``, so the lookup happens here and pypeline
+        receives a path it does not have to resolve again.
+        """
+        spl_paths = SPLPaths(self.project_dir, None, None, None)
+        for _group, steps in PipelineConfigIterator(pipeline):
+            for step in steps:
+                if step.include is None:
+                    continue
+                if isinstance(step.include, IncludeSpec):
+                    step.include.file = str(spl_paths.locate_artifact(step.include.file, [declaring_file]))
+                else:
+                    step.include = str(spl_paths.locate_artifact(step.include, [declaring_file]))
 
     def _collect_variants(self, user_configs: list[YangaUserConfig]) -> list[VariantConfig]:
         variants = []
