@@ -95,6 +95,7 @@ class FeaturesDocumentationWriter(FileWriter):
 @dataclass
 class KConfigGenConfig(DataClassDictMixin):
     kconfig_model_file: str = "KConfig"
+    output_stem: str = "autoconf"
 
 
 class KConfigGen(PipelineStep[ExecutionContext]):
@@ -113,15 +114,15 @@ class KConfigGen(PipelineStep[ExecutionContext]):
 
     @property
     def header_file(self) -> Path:
-        return self.output_dir.joinpath("autoconf.h")
+        return self.output_dir.joinpath(f"{self.user_config.output_stem}.h")
 
     @property
     def json_config_file(self) -> Path:
-        return self.output_dir.joinpath("autoconf.json")
+        return self.output_dir.joinpath(f"{self.user_config.output_stem}.json")
 
     @property
     def features_doc_file(self) -> Path:
-        return self.output_dir.joinpath("autoconf.md")
+        return self.output_dir.joinpath(f"{self.user_config.output_stem}.md")
 
     @property
     def kconfig_model_file(self) -> Path:

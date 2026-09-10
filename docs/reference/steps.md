@@ -24,6 +24,11 @@ Processes KConfig feature models to generate C headers, JSON configuration, and 
 
 **Configuration:** The variant must declare a `features_selection_file` pointing to a KConfig selection file.
 
+| Key | Default | Description |
+|-----|---------|-------------|
+| `kconfig_model_file` | `KConfig` | KConfig model file, relative to the project root |
+| `output_stem` | `autoconf` | Base name of the three generated files, e.g. `product_features` gives `product_features.h` |
+
 ---
 
 ## `WestInstall`

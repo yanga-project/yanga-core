@@ -32,3 +32,22 @@ def test_kconfig_model_file(
 ) -> None:
     step = KConfigGen(execution_context, config=config)
     assert step.kconfig_model_file == execution_context.project_root_dir / expected_filename
+
+
+@pytest.mark.parametrize(
+    "config, expected_stem",
+    [
+        (None, "autoconf"),
+        ({"output_stem": "product_features"}, "product_features"),
+    ],
+    ids=["default-stem", "custom-stem"],
+)
+def test_output_stem(
+    execution_context: ExecutionContext,
+    config: dict[str, str] | None,
+    expected_stem: str,
+) -> None:
+    step = KConfigGen(execution_context, config=config)
+    kconfig_dir = execution_context.spl_paths.variant_build_dir / "kconfig"
+    assert step.get_outputs() == [kconfig_dir / f"{expected_stem}.{ext}" for ext in ("h", "md", "json")]
+    assert step.json_config_file == kconfig_dir / f"{expected_stem}.json"
