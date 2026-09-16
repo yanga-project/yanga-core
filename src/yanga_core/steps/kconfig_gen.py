@@ -129,16 +129,21 @@ class KConfigGen(PipelineStep[ExecutionContext]):
         """Path to the KConfig model file, configurable via 'kconfig_model_file' in the step config."""
         return self.project_root_dir.joinpath(self.user_config.kconfig_model_file)
 
+    @property
+    def features_selection_file(self) -> Path | None:
+        """The variant's product selection, looked up next to the variant's file, then in the project."""
+        variant = self.execution_context.variant
+        if not variant or not variant.feature_selection:
+            return None
+        return self.execution_context.spl_paths.locate_artifact(variant.feature_selection.file, [variant.file])
+
     def run(self) -> int:
         self.logger.debug(f"Run {self.get_name()} stage. Output dir: {self.output_dir}")
         kconfig_model_file = self.kconfig_model_file
         if not kconfig_model_file.is_file():
             self.logger.info("No KConfig file found. Skip this stage.")
             return 0
-        kconfig = KConfig(
-            kconfig_model_file,
-            self.execution_context.features_selection_file,
-        )
+        kconfig = KConfig(kconfig_model_file, self.features_selection_file)
         self.input_files = kconfig.get_parsed_files()
         config = kconfig.collect_config_data()
         HeaderWriter(self.header_file).write(config)

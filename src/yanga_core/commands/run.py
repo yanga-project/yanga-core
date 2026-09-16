@@ -107,6 +107,7 @@ class RunCommand(Command):
         user_request = UserRequest(
             scope=(UserRequestScope.COMPONENT if config.component_name else UserRequestScope.VARIANT),
             variant_name=variant_name,
+            platform_name=platform_name,
             component_name=config.component_name,
             target=config.target,
             build_type=build_type,
@@ -174,7 +175,7 @@ class RunCommand(Command):
             user_request=user_request,
             selected_component_names=(project_slurper.get_selected_component_names(variant_name, platform_name) if variant_name else []),
             user_config_files=project_slurper.user_config_files,
-            features_selection_file=(project_slurper.get_variant_config_file(variant_name) if variant_name else None),
+            feature_model=project_slurper.feature_model,
             platform=project_slurper.get_platform(platform_name),
             variant=(project_slurper.get_variant_config(variant_name) if variant_name else None),
             project_configs=project_slurper.project_configs,

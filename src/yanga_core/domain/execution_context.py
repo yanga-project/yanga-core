@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
+from typing import Any
 
 from pypeline.domain.artifacts import ProjectArtifactsLocator
 from pypeline.domain.execution_context import ExecutionContext as _ExecutionContext
@@ -8,7 +9,7 @@ from pypeline.domain.external_project import ExternalProject
 
 from .component_resolver import ComponentResolver
 from .components import Component
-from .config import ComponentConfig, ConfigFile, PlatformConfig, VariantConfig
+from .config import ComponentConfig, ConfigFile, FeatureModelConfig, PlatformConfig, VariantConfig
 from .spl_paths import SPLPaths
 
 
@@ -24,6 +25,8 @@ class UserRequestTarget(Enum):
     LINT = auto()
     DOCS = auto()
     REPORT = auto()
+    #: Open the feature model editor
+    FEATURES = auto()
     #: These are all results relevant for reports generation (e.g., test results, coverage results, lint results, etc.)
     RESULTS = auto()
 
@@ -36,13 +39,18 @@ class UserRequestScope(Enum):
     COMPONENT = auto()
 
 
-@dataclass(frozen=True, order=True)
+@dataclass(frozen=True)
 class UserRequest:
+    """What the user asked for on the command line: the SPL coordinates as fields, tool flags in ``extra``."""
+
     scope: UserRequestScope
     variant_name: str | None = None
+    platform_name: str | None = None
     component_name: str | None = None
     target: str | UserRequestTarget | None = None
     build_type: str | None = None
+    #: Flags that belong to one step, not to the SPL; a step parses the ones it knows into its own dataclass
+    extra: dict[str, Any] = field(default_factory=dict)
 
     @property
     def target_name(self) -> str:
@@ -59,7 +67,7 @@ class UserVariantRequest(UserRequest):
         target: str | UserRequestTarget | None = None,
         build_type: str | None = None,
     ) -> None:
-        super().__init__(UserRequestScope.VARIANT, variant_name, None, target=target, build_type=build_type)
+        super().__init__(UserRequestScope.VARIANT, variant_name=variant_name, target=target, build_type=build_type)
 
 
 @dataclass
@@ -71,7 +79,7 @@ class ExecutionContext(_ExecutionContext):
         variant_name: str | None = None,
         selected_component_names: list[str] | None = None,
         user_config_files: list[Path] | None = None,
-        features_selection_file: Path | None = None,
+        feature_model: FeatureModelConfig | None = None,
         platform: PlatformConfig | None = None,
         variant: VariantConfig | None = None,
         project_configs: list[ConfigFile] | None = None,
@@ -85,7 +93,9 @@ class ExecutionContext(_ExecutionContext):
         #: (registry-as-pool), where the slurper and any generators publish ``ComponentConfig``s.
         self._selected_component_names = selected_component_names if selected_component_names else []
         self.user_config_files = user_config_files if user_config_files else []
-        self.features_selection_file = features_selection_file
+        #: The product feature model, declared at the top level of the configuration. A step serving a
+        #: platform model reads it from ``platform`` instead; each step picks the model and selections it needs.
+        self.feature_model = feature_model
         self.platform = platform
         self.variant = variant
         self.project_configs: list[ConfigFile] = project_configs if project_configs else []

@@ -28,13 +28,42 @@ A `yanga.yaml` file can contain any combination of the following top-level keys:
 
 ```yaml
 pipeline:       # Pipeline stage and step definitions
+feature_model:  # The product feature model
 variants:       # Product variant definitions
 platforms:      # Platform/target definitions
 components:     # Component definitions
 configs:        # Project-level configuration entries
 ```
 
-Multiple `yanga.yaml` files are merged. Components, variants, and platforms are collected from all files. This allows a distributed project layout where each directory defines its own components.
+Multiple `yanga.yaml` files are merged. Components, variants, and platforms are collected from all files. This allows a distributed project layout where each directory defines its own components. Only one file may declare `pipeline:`, and only one may declare `feature_model:`.
+
+## Feature Models and Selections
+
+A feature model is a KConfig root file. A selection is a file of symbol values for one model. The project declares the product model; a platform whose configuration lives elsewhere (Zephyr's Kconfig, for example) declares its own. The two models never mix: a selection file belongs to exactly one of them.
+
+```yaml
+feature_model:                    # product model
+  description: Product features
+  file: KConfig                   # next to this file, else in the project root
+
+platforms:
+  - name: zephyr
+    feature_model:                # platform model, replaces the product one for --platform
+      file: zephyr/Kconfig
+    feature_selection:            # the platform's defaults
+      file: platforms/zephyr/prj.conf
+
+variants:
+  - name: Disco
+    feature_selection:            # product selection, used by KConfigGen
+      file: config.txt
+    platforms:
+      zephyr:
+        feature_selection:        # this variant's selection for the zephyr model, on top of the defaults
+          file: variants/Disco/zephyr.conf
+```
+
+Each step reads the model and the selection files it serves. `KConfigGen` serves the product: the top-level `feature_model` and the variant's `feature_selection`. A step serving a platform model reads the platform's `feature_model`, the platform's `feature_selection` as the defaults and the variant's entry for that platform on top. A model may also declare a `pipeline:`, the steps that prepare it for editing; no command runs it yet.
 
 ## `configs` Entries
 

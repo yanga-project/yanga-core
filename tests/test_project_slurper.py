@@ -6,7 +6,7 @@ from py_app_dev.core.exceptions import UserNotificationException
 from pypeline.domain.pipeline import PipelineStepConfig
 
 from yanga_core.commands.run import RunCommand
-from yanga_core.domain.config import ComponentConfig, PlatformConfig, VariantConfig, VariantPlatformsConfig
+from yanga_core.domain.config import ComponentConfig, FeatureModelConfig, PlatformConfig, VariantConfig, VariantPlatformsConfig
 from yanga_core.domain.execution_context import UserRequest, UserRequestScope
 from yanga_core.domain.project_slurper import YangaProjectSlurper
 
@@ -213,3 +213,67 @@ def test_two_top_level_pipelines_is_an_error(tmp_path: Path) -> None:
         YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
 
     assert "platforms" in str(error.value), "the error must name both files"
+
+
+@pytest.mark.parametrize(
+    ("platform_name", "expected_file"),
+    [("zephyr", "zephyr/Kconfig"), ("gtest", "KConfig"), (None, "KConfig")],
+)
+def test_get_feature_model_prefers_the_platform_model(tmp_path: Path, platform_name: str | None, expected_file: str) -> None:
+    project_slurper = YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
+    project_slurper.feature_model = FeatureModelConfig(file="KConfig")
+    project_slurper.platforms = [PlatformConfig(name="zephyr", feature_model=FeatureModelConfig(file="zephyr/Kconfig")), PlatformConfig(name="gtest")]
+
+    feature_model = project_slurper.get_feature_model(platform_name)
+    assert feature_model and feature_model.file == expected_file
+
+
+def test_feature_model_file_and_pipeline_include_resolve_against_the_declaring_file(tmp_path: Path) -> None:
+    (tmp_path / "pipeline").mkdir()
+    (tmp_path / "pipeline" / "bootstrap.yaml").write_text(
+        textwrap.dedent("""\
+            pipeline:
+                - step: CreateVEnv
+                  run: echo "venv"
+            """)
+    )
+    platform_dir = tmp_path / "platforms" / "zephyr"
+    platform_dir.mkdir(parents=True)
+    (platform_dir / "Kconfig").touch()
+    (platform_dir / "yanga.yaml").write_text(
+        textwrap.dedent("""\
+            platforms:
+                - name: zephyr
+                  feature_model:
+                    file: Kconfig
+                    pipeline:
+                      - include: pipeline/bootstrap.yaml
+                      - step: KConfigEdit
+                        run: echo "edit"
+            """)
+    )
+    (tmp_path / "KConfig").touch()
+    (tmp_path / "yanga.yaml").write_text(
+        textwrap.dedent("""\
+            feature_model:
+                file: KConfig
+            """)
+    )
+
+    project_slurper = YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)
+
+    project_model = project_slurper.get_feature_model(None)
+    assert project_model and project_model.file == str(tmp_path / "KConfig")
+    platform_model = project_slurper.get_feature_model("zephyr")
+    assert platform_model and platform_model.file == str(platform_dir / "Kconfig")
+    assert [step.step for step in platform_model.pipeline or []] == ["CreateVEnv", "KConfigEdit"]
+
+
+def test_two_project_feature_models_is_an_error(tmp_path: Path) -> None:
+    (tmp_path / "KConfig").touch()
+    (tmp_path / "yanga.yaml").write_text("feature_model:\n  file: KConfig\n")
+    (tmp_path / "other").mkdir()
+    (tmp_path / "other" / "yanga.yaml").write_text("feature_model:\n  file: KConfig\n")
+
+    with pytest.raises(UserNotificationException, match="feature model is defined in multiple"):
+        YangaProjectSlurper(project_dir=tmp_path, create_yanga_build_dir=False)

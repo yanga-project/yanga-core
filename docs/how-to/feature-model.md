@@ -32,14 +32,21 @@ CONFIG_NETWORKING_ENABLED=y
 CONFIG_MAX_CONNECTIONS=20
 ```
 
-### 3. Reference in the Variant
+### 3. Declare the Model and Reference the Selection
 
 ```yaml
+feature_model:
+  description: Product features
+  file: KConfig
+
 variants:
   - name: ConnectedProduct
     components: [main, networking]
-    features_selection_file: "config.txt"
+    feature_selection:
+      file: "config.txt"
 ```
+
+See the [configuration reference](../reference/configuration.md#feature-models-and-selections) for platform models and per-platform selections.
 
 ### 4. Add KConfigGen to the Pipeline
 

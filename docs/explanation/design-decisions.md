@@ -253,3 +253,56 @@ have to live on pypeline's step entry, which stays domain-neutral.
   Only the `pipeline` field under a `platforms:` entry is platform-scoped.
 - Nothing changes for platforms that declare no pipeline, and nothing changes in the GUI,
   which only calls the run command.
+
+## Feature Models and Selections
+
+**Decision:** a variant's `features_selection_file: <path>` is replaced, without alias, by
+typed blocks: `feature_model:` (file, description, pipeline) on the project and on a
+platform, and `feature_selection:` (file, description) on a variant, on a platform, and on a
+variant's per-platform entry. `UserRequest` gains `platform_name` and an `extra` dict; the
+execution context carries the product model, and each step reads the selection files it serves.
+
+### Why
+
+A product built on a platform with its own configuration system, Zephyr being the case at
+hand, has two feature models: the product's KConfig and the platform's Kconfig root. They
+describe different things and are edited with different tools, so they stay separate. A
+model is opened alone; there is no merged model.
+
+Each model has its own selection files. The product model has one per variant. The platform
+model has the platform's own file, which acts as the defaults, and optionally one per variant
+that differs from those defaults. A selection file belongs to exactly one model and never
+assigns symbols of the other.
+
+Which files are read is decided by the step that serves the model, not by a command or the
+slurper: `KConfigGen` serves the product and reads the variant's product selection; an
+editor for the platform model reads the platform's defaults and the variant's file for that
+platform on top, and saves to the latter. The context carries the configuration as declared,
+the product model at the top and the platform's inside `platform`, so every step can find
+what it needs without a pre-computed answer that fits only one of them.
+
+### Why a block, not a path
+
+Opening a model may need work first: publishing a variable, configuring Zephyr for a board.
+That work differs per model and per project, so the model declares its own `pipeline:`,
+setup steps first and the step that opens the editor at the end, and yanga will run it
+without knowing the tool. A `description` lets the command name the models it offers. A
+bare path cannot carry either.
+
+### Why `UserRequest` grows instead of a second request type
+
+A features request is one more thing the user asks for, like a build target. A parallel
+request class would leave one of two slots empty on every context and make each step ask
+which command it runs under. The SPL coordinates the user can select, variant, platform,
+component, target and build type, are fields; flags that belong to one tool go in `extra`,
+and the step that owns them parses the ones it knows into its own dataclass, the same way
+step configuration is parsed today.
+
+### Consequences
+
+- Old configurations fail at load with a message naming the variant and the new key. Unknown
+  keys are otherwise ignored, so without that check the selection would be dropped silently.
+- `KConfigGen` resolves the variant's selection file itself and is otherwise unchanged; the
+  editor step and the command that runs a model's pipeline are separate changes.
+- The `yanga info` output follows the configuration, so its variants and platforms show the
+  new blocks and no longer show `features_selection_file`.

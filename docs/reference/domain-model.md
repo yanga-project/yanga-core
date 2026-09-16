@@ -55,9 +55,11 @@ A `VariantConfig` defines a product configuration:
 | `name` | `str` | Variant name (required) |
 | `description` | `str` | Human-readable description |
 | `components` | `list[str]` | Component names included in this variant |
-| `features_selection_file` | `str` | KConfig feature selection file |
+| `feature_selection` | `FeatureSelectionConfig` | Selection for the product feature model |
 | `configs` | `list[ConfigFile]` | Variant-level config entries |
 | `platforms` | `dict[str, VariantPlatformsConfig]` | Platform-specific overrides |
+
+A `VariantPlatformsConfig` entry adds `components`, `configs` and a `feature_selection` for that platform's feature model.
 
 ### Platform Overrides
 
@@ -85,10 +87,24 @@ A `PlatformConfig` defines a target environment:
 | `description` | `str` | Human-readable description |
 | `generators` | `list[GenericPipelineConfig]` | Build system generators for this platform |
 | `pipeline` | `PipelineConfig` | Pipeline run for this platform instead of the project one |
+| `feature_model` | `FeatureModelConfig` | The platform's own feature model, used instead of the project one |
+| `feature_selection` | `FeatureSelectionConfig` | The platform's defaults for its feature model |
 | `build_types` | `list[str]` | Allowed build types (e.g., `Debug`, `Release`) |
 | `build_targets` | `list[str]` | Available build targets |
 | `configs` | `list[ConfigFile]` | Platform-level config entries |
 | `components` | `list[str]` | Platform-specific components |
+
+## Feature Models
+
+A `FeatureModelConfig` names a KConfig root; a `FeatureSelectionConfig` names one file of symbol values for one model:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `file` | `str` | KConfig root (model) or selection file; looked up next to the declaring file, then in the project root |
+| `description` | `str` | Shown when the user picks a model to edit |
+| `pipeline` | `PipelineConfig` | Model only: steps that prepare the model for editing; `include:` resolved at load; not run by any command yet |
+
+The project declares the product model as a top-level `feature_model:`; a platform may declare its own. The execution context carries the product model as `feature_model` and the platform's as part of `platform`; each step reads the model and selection files it serves. See [Configuration](configuration.md#feature-models-and-selections).
 
 ## SPLPaths
 

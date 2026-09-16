@@ -8,7 +8,7 @@ from pypeline.domain.pipeline import IncludeSpec, PipelineConfig, PipelineConfig
 
 from yanga_core.domain.spl_paths import SPLPaths
 
-from .config import ComponentConfig, ConfigFile, PlatformConfig, VariantConfig, YangaUserConfig
+from .config import ComponentConfig, ConfigFile, FeatureModelConfig, PlatformConfig, VariantConfig, YangaUserConfig
 from .config_slurper import YangaConfigSlurper
 
 #: Directories always skipped by the project discovery walk, in addition to any user-configured ``exclude_dirs``.
@@ -26,6 +26,7 @@ class YangaProjectSlurper:
         exclude = list({*exclude, *DEFAULT_EXCLUDE_DIRS})
         self.user_configs: list[YangaUserConfig] = YangaConfigSlurper(project_dir=self.project_dir, exclude_dirs=exclude, configuration_file_name=configuration_file_name).slurp()
         self.project_pipeline: PipelineConfig | None = self._find_project_pipeline_config(self.user_configs)
+        self.feature_model: FeatureModelConfig | None = self._find_feature_model(self.user_configs)
         self.variants: list[VariantConfig] = self._collect_variants(self.user_configs)
         self.platforms: list[PlatformConfig] = self._collect_platforms(self.user_configs)
         self.components: list[ComponentConfig] = self._collect_components(self.user_configs)
@@ -50,10 +51,12 @@ class YangaProjectSlurper:
 
         return variant
 
-    def get_variant_config_file(self, variant_name: str) -> Path | None:
-        variant = self.get_variant_config(variant_name)
-        spl_paths = SPLPaths(self.project_dir, variant_name, None, None)
-        return spl_paths.locate_artifact(variant.features_selection_file, [variant.file]) if variant.features_selection_file else None
+    def get_feature_model(self, platform_name: str | None) -> FeatureModelConfig | None:
+        """The selected platform's own feature model if it declares one, else the project one."""
+        platform = self.get_platform(platform_name)
+        if platform and platform.feature_model:
+            return platform.feature_model
+        return self.feature_model
 
     def get_selected_component_names(self, variant_name: str, platform_name: str | None = None) -> list[str]:
         return self._collect_selected_component_names(self.get_variant_config(variant_name), platform_name)
@@ -126,6 +129,23 @@ class YangaProjectSlurper:
                 components.append(component)
         return components
 
+    def _find_feature_model(self, user_configs: list[YangaUserConfig]) -> FeatureModelConfig | None:
+        declarations = [(user_config.feature_model, user_config.file) for user_config in user_configs if user_config.feature_model]
+        if len(declarations) > 1:
+            files = ", ".join(sorted(str(file) for _, file in declarations))
+            raise UserNotificationException(f"The feature model is defined in multiple configuration files. Only one may define it. See {files}")
+        if not declarations:
+            return None
+        feature_model, declaring_file = declarations[0]
+        return self._resolve_feature_model(feature_model, declaring_file)
+
+    def _resolve_feature_model(self, feature_model: FeatureModelConfig, declaring_file: Path | None) -> FeatureModelConfig:
+        """Make the model file absolute and expand the pipeline's ``include:`` entries, in place."""
+        feature_model.file = str(SPLPaths(self.project_dir, None, None, None).locate_artifact(feature_model.file, [declaring_file]))
+        if feature_model.pipeline:
+            feature_model.pipeline = self._assemble_pipeline(feature_model.pipeline, declaring_file)
+        return feature_model
+
     def _find_project_pipeline_config(self, user_configs: list[YangaUserConfig]) -> PipelineConfig | None:
         declarations: list[tuple[PipelineConfig, Path | None]] = []
         for user_config in user_configs:
@@ -181,6 +201,8 @@ class YangaProjectSlurper:
                 platform.file = user_config.file
                 if platform.pipeline:
                     platform.pipeline = self._assemble_pipeline(platform.pipeline, platform.file)
+                if platform.feature_model:
+                    platform.feature_model = self._resolve_feature_model(platform.feature_model, platform.file)
                 platforms.append(platform)
         return platforms
 

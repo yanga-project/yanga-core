@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 from py_app_dev.core.config import ConfigElement, parse_config_element
+from py_app_dev.core.exceptions import UserNotificationException
 from py_app_dev.core.pipeline import PipelineConfig as GenericPipelineConfig
 from pypeline.domain.pipeline import PipelineConfig
 
@@ -100,6 +101,26 @@ def _dedup_preserve_order(*lists: list[str]) -> list[str]:
 
 
 @dataclass
+class FeatureModelConfig(ConfigElement):
+    """A feature model and the pipeline that prepares it for its editor."""
+
+    #: KConfig root file, looked up next to the declaring file, then in the project root
+    file: str
+    #: Description
+    description: str | None = None
+    #: Steps that prepare the model for editing, ending with the one that opens the editor
+    pipeline: PipelineConfig | None = None
+
+
+@dataclass
+class FeatureSelectionConfig(ConfigElement):
+    #: Selection file, looked up next to the declaring file, then in the project root
+    file: str
+    #: Description
+    description: str | None = None
+
+
+@dataclass
 class PlatformConfig(ConfigElement):
     #: Platform name
     name: str
@@ -109,6 +130,10 @@ class PlatformConfig(ConfigElement):
     generators: GenericPipelineConfig = field(default_factory=list)
     #: Pipeline run for this platform instead of the project one
     pipeline: PipelineConfig | None = None
+    #: The platform's own feature model, used instead of the project one
+    feature_model: FeatureModelConfig | None = None
+    #: The platform's own selection, the defaults every variant starts from on this platform
+    feature_selection: FeatureSelectionConfig | None = None
     #: Supported build types
     build_types: list[str] = field(default_factory=list)
     #: Supported targets. Either a flat list (applies to both scopes) or a
@@ -148,6 +173,8 @@ class VariantPlatformsConfig(ConfigElement):
     components: list[str] = field(default_factory=list)
     #: Generic config files for steps
     configs: list[ConfigFile] = field(default_factory=list)
+    #: The variant's selection for this platform's feature model, on top of the platform's own
+    feature_selection: FeatureSelectionConfig | None = None
 
 
 @dataclass
@@ -160,8 +187,8 @@ class VariantConfig(ConfigElement):
     components: list[str] = field(default_factory=list)
     #: Platform specific configuration, used in case the variant needs to defines specific settings for some platforms
     platforms: dict[str, VariantPlatformsConfig] | None = None
-    #: Configuration
-    features_selection_file: str | None = None
+    #: The variant's selection for the product feature model
+    feature_selection: FeatureSelectionConfig | None = None
     #: Generic config files for steps
     configs: list[ConfigFile] = field(default_factory=list)
     # This field is intended to keep track of where configuration was loaded from and
@@ -256,6 +283,8 @@ class ComponentConfig(ConfigElement):
 class YangaUserConfig(ConfigElement):
     #: Pipeline steps to execute
     pipeline: PipelineConfig | None = None
+    #: The product feature model
+    feature_model: FeatureModelConfig | None = None
     #: Supported platforms to build for
     platforms: list[PlatformConfig] = field(default_factory=list)
     #: Software product variants
@@ -268,6 +297,15 @@ class YangaUserConfig(ConfigElement):
     # Convenience reference to the loaded file (equals ``location.file``); kept for
     # the many readers that expect ``.file`` on a user config.
     file: Path | None = None
+
+    @classmethod
+    def __pre_deserialize__(cls, d: dict[str, Any]) -> dict[str, Any]:
+        # Unknown keys are ignored when parsing, so the removed key would silently drop the selection.
+        # Checked here, not on VariantConfig: an error raised while a field is decoded loses its message.
+        for variant in d.get("variants") or []:
+            if isinstance(variant, dict) and "features_selection_file" in variant:
+                raise UserNotificationException(f"Variant '{variant.get('name')}': 'features_selection_file' was replaced by 'feature_selection: {{file: ...}}'.")
+        return super().__pre_deserialize__(d)
 
     @classmethod
     def from_file(cls, config_file: Path) -> "YangaUserConfig":
