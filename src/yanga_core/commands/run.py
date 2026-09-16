@@ -6,6 +6,7 @@ from pathlib import Path
 from py_app_dev.core.cmd_line import Command, register_arguments_for_config_dataclass
 from py_app_dev.core.exceptions import UserNotificationException
 from py_app_dev.core.logging import logger, time_it
+from pypeline.domain.pipeline import PipelineConfig
 from pypeline.pypeline import PipelineScheduler, PipelineStepsExecutor
 
 from yanga_core.domain.config import PlatformConfig, VariantConfig
@@ -158,8 +159,9 @@ class RunCommand(Command):
         step: str | None = None,
         force_run: bool = False,
         single: bool = False,
+        pipeline: PipelineConfig | None = None,
     ) -> None:
-        pipeline = project_slurper.get_pipeline(platform_name)
+        pipeline = pipeline or project_slurper.get_pipeline(platform_name)
         if not pipeline:
             raise UserNotificationException("No pipeline found in the configuration.")
         # Schedule the steps to run

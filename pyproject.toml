@@ -27,7 +27,8 @@ dependencies = [
   "typer>=0,<1",
   "mashumaro>=3.13,<4",
   "clanguru>=0,<1",
-  "kspl>=1,<2",
+  "kspl>=1.10.1,<2",
+  "kconfiglib>=14,<15",
   "pick>=2.2,<3",
 ]
 urls."Bug Tracker" = "https://github.com/yanga-project/yanga-core/issues"

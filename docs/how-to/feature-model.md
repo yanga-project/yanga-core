@@ -40,7 +40,7 @@ feature_model:
   file: KConfig
 
 variants:
-  - name: ConnectedProduct
+  - name: MyVariant
     components: [main, networking]
     feature_selection:
       file: "config.txt"
@@ -56,6 +56,34 @@ pipeline:
     - step: KConfigGen
       module: yanga_core.steps.kconfig_gen
 ```
+
+## Edit the Selection
+
+Give the model a pipeline that ends with `KConfigEdit`. Steps before it prepare what the model needs, for example a variable the `KConfig` file reads:
+
+```yaml
+feature_model:
+  description: Product features
+  file: KConfig
+  pipeline:
+    - include: pipeline/bootstrap.yaml
+    - step: KConfigEdit
+      module: yanga_core.steps.kconfig_edit
+```
+
+Then open the editor for a variant, or the viewer for all variants:
+
+```bash
+yanga features --variant MyVariant          # GUI
+yanga features --variant MyVariant --no-gui # terminal
+yanga features                                     # all variants side by side
+```
+
+The editor saves to the variant's `config.txt`.
+
+A platform with a KConfig model of its own declares a `feature_model:` block the same way, and `yanga features --variant MyVariant --platform <NAME>` runs it, editing the variant's `platforms.<NAME>.feature_selection` file. `--platform` without a variant is an error.
+
+That platform pipeline ends with `KConfigEdit` only when plain kconfiglib can load the model. A framework whose model needs its own tooling declares that tooling instead: Zephyr's Kconfig tree, for instance, uses Zephyr's own kconfiglib fork plus an environment that its CMake configure computes, so its editor is the `menuconfig` build target of a variant's build, and the pipeline also carries whatever writes the result back into the selection file.
 
 ## Generated Outputs
 

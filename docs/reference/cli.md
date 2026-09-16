@@ -15,7 +15,7 @@ yanga run [OPTIONS]
 | Option | Description |
 |--------|-------------|
 | `--platform <NAME>` | Target platform |
-| `--variant-name <NAME>` | Product variant to build |
+| `--variant <NAME>` | Product variant to build |
 | `--component <NAME>` | Narrow scope to a single component |
 | `--target <NAME>` | Specific build target |
 | `--build-type <TYPE>` | Build type (e.g., `Debug`, `Release`) |
@@ -25,7 +25,33 @@ yanga run [OPTIONS]
 | `--print` | Print project configuration without executing |
 | `--not-interactive` | Fail instead of prompting for user input |
 
-If `--variant-name` or `--platform` are not provided and multiple options exist, the user is prompted interactively (unless `--not-interactive` is set).
+If `--variant` or `--platform` are not provided and multiple options exist, the user is prompted interactively (unless `--not-interactive` is set).
+
+## `yanga features`
+
+Shows the product features of all variants, or edits one selection, by running the `pipeline:` of a `feature_model:` block.
+
+```bash
+yanga features [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--variant <NAME>` | Variant whose selection to edit |
+| `--platform <NAME>` | Platform whose feature model to open; needs `--variant` |
+| `--gui` / `--no-gui` | GUI editor (default) or terminal editor |
+
+The flags pick the model and what happens:
+
+| Flags | Model | Result |
+|-------|-------|--------|
+| none | the project's `feature_model:` | kspl's viewer with every variant's product selection (GUI only) |
+| `--variant` | the project's `feature_model:` | editor on the variant's selection |
+| `--variant` and `--platform` | that platform's `feature_model:` | editor on the variant's selection for that platform |
+
+A platform that declares no `feature_model:` block is an error when passed as `--platform`; the product model is never opened for a platform. `--platform` on its own is an error too: a platform model is opened by the platform's own tool, which configures a build of a variant. The request reaches the steps as `UserRequest(target=FEATURES, variant_name, platform_name, extra={"gui": ...})`.
 
 ## `yanga report_config`
 
@@ -61,3 +87,10 @@ Filters a `compile_commands.json` compilation database to include only entries f
 - `--compilation-database` — path to `compile_commands.json`
 - `--source-files` — list of source file paths to keep
 - `--output-file` — path for the filtered output
+
+## `python -m yanga_core.commands kconfig_view`
+
+Not a user command: `python -m yanga_core.commands` only carries helpers a pipeline step runs as its own process, while `run`, `info` and `features` are classes the `yanga` CLI calls directly. Shows the product feature model with every variant's declared `feature_selection` in kspl's viewer. The [`KConfigEdit`](steps.md#kconfigedit) step runs it as its own process with the pipeline's environment when neither a variant nor a platform is selected; it waits until the window is closed.
+
+**Arguments:**
+- `--project-dir` — project root directory; the model is the project's `feature_model:` block

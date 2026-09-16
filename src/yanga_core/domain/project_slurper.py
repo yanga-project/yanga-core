@@ -2,7 +2,7 @@ from pathlib import Path
 
 from py_app_dev.core.data_registry import DataRegistry
 from py_app_dev.core.exceptions import UserNotificationException
-from py_app_dev.core.logging import logger
+from py_app_dev.core.logging import logger, time_it
 from pypeline.domain.config import assemble_pipeline
 from pypeline.domain.pipeline import IncludeSpec, PipelineConfig, PipelineConfigIterator
 
@@ -18,6 +18,7 @@ __all__ = ["YangaProjectSlurper"]
 
 
 class YangaProjectSlurper:
+    @time_it("load configs")
     def __init__(self, project_dir: Path, configuration_file_name: str | None = None, exclude_dirs: list[str] | None = None, create_yanga_build_dir: bool = True) -> None:
         self.logger = logger.bind()
         self.project_dir = project_dir

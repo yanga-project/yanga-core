@@ -22,12 +22,35 @@ Processes KConfig feature models to generate C headers, JSON configuration, and 
 
 **Inputs:** User config files and KConfig source files.
 
-**Configuration:** The variant must declare a `features_selection_file` pointing to a KConfig selection file.
+**Configuration:** The variant declares a `feature_selection:` block pointing to a KConfig selection file.
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `kconfig_model_file` | `KConfig` | KConfig model file, relative to the project root |
 | `output_stem` | `autoconf` | Base name of the three generated files, e.g. `product_features` gives `product_features.h` |
+
+---
+
+## `KConfigEdit`
+
+**Module:** `yanga_core.steps.kconfig_edit`
+
+Opens kconfiglib's editor on the requested feature model and saves into the declared selection file. It is the last step of a `feature_model:` pipeline, the project's or a platform's, run by `yanga features`. A model whose editor is a tool of its own, such as Zephyr's `menuconfig` build target, declares that tool in its pipeline instead of this step.
+
+**Behavior:** the request's variant and platform decide the model and the one selection file.
+
+| Request | Model | Selection file |
+|---------|-------|----------------|
+| neither | project `feature_model.file` | none opened for editing; runs [`kconfig_view`](cli.md), every variant's selection side by side in kspl's viewer |
+| variant | project `feature_model.file` | variant `feature_selection.file` |
+| variant and platform | platform `feature_model.file` | variant `platforms.<platform>.feature_selection.file` |
+
+- Selection files are looked up next to the file that declares them, then in the project
+- Runs kconfiglib's own editor as its own process in the terminal, `python -m guiconfig <model>`, with the selection file in `KCONFIG_CONFIG` and the pipeline's environment, in the model's directory. That is the editor's documented command line, so the editor loads and saves that one file
+- Reads `gui` from `UserRequest.extra`: `true` (default) opens `guiconfig`, `false` opens `menuconfig`; the viewer has no terminal form
+- Has no inputs and no outputs, so it always runs
+
+**Errors:** a missing `feature_model:` block, no variant, or an undeclared output file: the variant's selection, or the variant's platform selection for a variant and platform request. The editor never saves into an undeclared file. A platform's own `feature_selection:` is a build input; this step never loads or writes it.
 
 ---
 

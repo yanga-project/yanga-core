@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from yanga_core.domain.config import ComponentConfig
+import pytest
+
+from yanga_core.domain.config import ComponentConfig, FeatureSelectionConfig, PlatformConfig, VariantConfig, VariantPlatformsConfig
 from yanga_core.domain.execution_context import ExecutionContext, UserRequest, UserRequestScope, UserRequestTarget, UserVariantRequest
 from yanga_core.domain.reports import ReportRelevantFiles, ReportRelevantFileType
 
@@ -57,3 +59,34 @@ def test_user_request_round_trips_through_report_files(tmp_path: Path) -> None:
 
     assert ReportRelevantFiles.from_json(files.to_json_string()) == files
     assert files.target.extra["gui"] is False
+
+
+@pytest.mark.parametrize(
+    ("declared", "product", "platform"),
+    [
+        ("both", "variants/Disco/config.txt", "variants/Disco/zephyr.txt"),
+        ("product", "variants/Disco/config.txt", None),
+        ("none", None, None),
+    ],
+    ids=["both", "product-only", "none"],
+)
+def test_feature_selection_files_follow_the_variant_declarations(tmp_path: Path, declared: str, product: str | None, platform: str | None) -> None:
+    for relative in ("variants/Disco/yanga.yaml", "variants/Disco/config.txt", "variants/Disco/zephyr.txt"):
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).touch()
+    context = ExecutionContext(
+        project_root_dir=tmp_path,
+        variant_name="Disco",
+        user_request=UserRequest(UserRequestScope.VARIANT, variant_name="Disco", platform_name="zephyr"),
+        platform=PlatformConfig(name="zephyr"),
+        variant=VariantConfig(
+            name="Disco",
+            feature_selection=FeatureSelectionConfig(file="config.txt") if declared != "none" else None,
+            platforms={"zephyr": VariantPlatformsConfig(feature_selection=FeatureSelectionConfig(file="zephyr.txt"))} if declared == "both" else None,
+            file=tmp_path / "variants/Disco/yanga.yaml",
+        ),
+        create_yanga_build_dir=False,
+    )
+
+    assert context.variant_feature_selection_file == (tmp_path / product if product else None)
+    assert context.variant_platform_feature_selection_file == (tmp_path / platform if platform else None)

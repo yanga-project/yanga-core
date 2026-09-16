@@ -165,6 +165,8 @@ The central runtime object passed to all pipeline steps:
 | `variant` | `VariantConfig` | Selected variant config |
 | `components` | `list[Component]` | Resolved components for this variant+platform |
 | `spl_paths` | `SPLPaths` | Path resolver |
+| `variant_feature_selection_file` | `Path` or `None` | The variant's product selection file, resolved; `None` when not declared |
+| `variant_platform_feature_selection_file` | `Path` or `None` | The variant's selection file for the selected platform's feature model; `None` when not declared |
 | `data_registry` | inherited | Inter-step data bus |
 
 ### UserRequest

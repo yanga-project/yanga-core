@@ -306,3 +306,28 @@ step configuration is parsed today.
   editor step and the command that runs a model's pipeline are separate changes.
 - The `yanga info` output follows the configuration, so its variants and platforms show the
   new blocks and no longer show `features_selection_file`.
+
+## The Editor Saves Only Into Declared Selection Files
+
+**Decision:** the feature model editor saves into the selection file declared for the request: the
+variant's `feature_selection`, or the variant's `platforms.<platform>.feature_selection`. If that
+declaration is missing, the step fails and names it. There is no default path and no file found on
+disk.
+
+### Why
+
+Code generation reads only declared selection files; `KConfigGen` resolves the variant's
+`feature_selection` and nothing else. A selection saved anywhere else would be edited and then
+silently ignored by the build.
+
+### Consequences
+
+- One request, one file. `KConfigEdit` runs kconfiglib's own editor on the model with that file in
+  `KCONFIG_CONFIG`, so the editor loads and saves it the way it does when a user runs it by hand.
+- A platform's own `feature_selection:` is a build input, not something the editor writes, and
+  `--platform` without a variant is an error. A platform model may need its framework's tooling to
+  open at all: Zephyr's Kconfig tree uses its own kconfiglib fork and an environment computed
+  during a CMake configure of an application, so the editor is a build target of a variant's build.
+  Such a platform declares that tool in its `feature_model:` pipeline instead of `KConfigEdit`, and
+  whatever writes the selection file back is part of that pipeline too.
+- Editing uses kconfiglib's editors directly; kspl is only the cross-variant viewer.

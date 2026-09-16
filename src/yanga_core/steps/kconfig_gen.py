@@ -131,11 +131,7 @@ class KConfigGen(PipelineStep[ExecutionContext]):
 
     @property
     def features_selection_file(self) -> Path | None:
-        """The variant's product selection, looked up next to the variant's file, then in the project."""
-        variant = self.execution_context.variant
-        if not variant or not variant.feature_selection:
-            return None
-        return self.execution_context.spl_paths.locate_artifact(variant.feature_selection.file, [variant.file])
+        return self.execution_context.variant_feature_selection_file
 
     def run(self) -> int:
         self.logger.debug(f"Run {self.get_name()} stage. Output dir: {self.output_dir}")

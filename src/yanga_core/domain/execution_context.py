@@ -114,6 +114,25 @@ class ExecutionContext(_ExecutionContext):
         )
 
     @property
+    def variant_feature_selection_file(self) -> Path | None:
+        """The variant's product selection, resolved next to the variant's file, then in the project; None when not declared."""
+        variant = self.variant
+        if not variant or not variant.feature_selection:
+            return None
+        return self.spl_paths.locate_artifact(variant.feature_selection.file, [variant.file])
+
+    @property
+    def variant_platform_feature_selection_file(self) -> Path | None:
+        """The variant's selection for the selected platform's feature model; None when the variant declares none for it."""
+        variant, platform = self.variant, self.platform
+        if not variant or not platform:
+            return None
+        variant_platform = (variant.platforms or {}).get(platform.name)
+        if not variant_platform or not variant_platform.feature_selection:
+            return None
+        return self.spl_paths.locate_artifact(variant_platform.feature_selection.file, [variant.file])
+
+    @property
     def components(self) -> list[Component]:
         """The components built for this variant/platform (delegates to the resolver)."""
         return self.component_resolver.selected_components

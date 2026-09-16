@@ -1,5 +1,4 @@
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from .config import YangaUserConfig
@@ -50,13 +49,9 @@ class YangaConfigSlurper:
         self.configuration_file_name = configuration_file_name or "yanga.yaml"
 
     def slurp(self) -> list[YangaUserConfig]:
-        user_configs = []
-        config_files = find_files(self.project_dir, self.configuration_file_name, self.exclude_dirs)
-        with ThreadPoolExecutor() as executor:
-            future_to_file = {executor.submit(self.parse_config_file, config_file): config_file for config_file in config_files}
-            for future in as_completed(future_to_file):
-                user_configs.append(future.result())
-        return user_configs
+        # Sequential on purpose: parsing holds the GIL, so worker threads were no faster, and inside a Tk
+        # event handler a worker thread can deadlock by garbage-collecting a Tk object (e.g. a font).
+        return [self.parse_config_file(config_file) for config_file in find_files(self.project_dir, self.configuration_file_name, self.exclude_dirs)]
 
     def parse_config_file(self, config_file: Path) -> YangaUserConfig:
         return YangaUserConfig.from_file(config_file)
