@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.11.0 (2026-09-16)
+
+### Features
+
+- Dual feature model, split product and platform ([`ba8801c`](https://github.com/yanga-project/yanga-core/commit/ba8801caf29defb3fa28dbd5410d3fd1e53b5958))
+- Add option to rename kconfig generated artifacts ([`e28629c`](https://github.com/yanga-project/yanga-core/commit/e28629ce39cf2344da59c7bebd2a236d7b3040a0))
+
 ## v0.10.0 (2026-09-03)
 
 ### Features
