@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.12.0 (2026-09-18)
+
+### Features
+
+- Edit selections per feature model with features cli ([`0d5af9c`](https://github.com/yanga-project/yanga-core/commit/0d5af9c564ce5edc14e8e9fd4ebe95a0468784b9))
+
 ## v0.11.0 (2026-09-16)
 
 ### Features
