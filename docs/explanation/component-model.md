@@ -65,3 +65,40 @@ self-contained `Component` is the seam that keeps them apart.
 
 See [design decisions](design-decisions.md) for *why* resolution is lazy and
 consumption-time.
+
+## Container and integration components
+
+A component that lists `subcomponents` is a **container**: it groups other
+components for selection. A component that lists `integrates` is an
+**integration component**: it compiles other components' sources again, for
+example for an integration test.
+
+```yaml
+components:
+  - name: networking
+    subcomponents: [tcp, transport, pins]
+  - name: test_networking
+    integrates: [networking]
+    testing:
+      sources: [test/test_networking.cc]
+```
+
+- **Selecting a container** selects it and its subcomponents, depth first, in
+  declared order. `ComponentResolver` does the expansion, so
+  `selected_components` is already expanded. A container has no `sources`,
+  `include_directories` or `testing` of its own.
+- **Duplicates fail.** A component selected directly and through a container, or
+  through two containers, is an error that names both ways.
+- **Requiring a container** gives the public include directories of all its
+  subcomponents. A container may have its own `required_components`;
+  their public include directories are added to the container's.
+- **An integration component** does not select what it integrates. Its resolved
+  `sources` are its own plus those of every integrated component (a container
+  stands for all its subcomponents), and its include directories add theirs,
+  private ones and source folders included.
+- **Aliases.** A `subcomponents` or `integrates` entry may be an alias. If the
+  platform already selected a component with that alias, that one is used.
+  Otherwise the one declared component with that alias is used; several
+  candidates is an error.
+
+See [design decisions](design-decisions.md) for why these are two concepts.

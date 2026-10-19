@@ -47,3 +47,7 @@ class Component:
     @property
     def is_testable(self) -> bool:
         return bool(self.test_sources)
+
+    @property
+    def is_container(self) -> bool:
+        return bool(self.subcomponents)

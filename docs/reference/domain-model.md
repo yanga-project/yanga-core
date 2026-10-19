@@ -17,11 +17,12 @@ Defined in `yanga.yaml`:
 | `sources` | `list[str]` | Source file paths (relative to component location) |
 | `include_directories` | `list[IncludeDirectory]` | Include paths with `PUBLIC`/`PRIVATE` scope |
 | `required_components` | `list[str]` | Dependencies on other components |
+| `integrates` | `list[str]` | Components whose sources this component compiles again (by name, alias or container); they are not selected |
 | `testing` | `TestingConfiguration` | Test sources and mocking configuration |
 | `docs` | `DocsConfiguration` | Documentation sources |
 | `alias` | `str` | Alternative name for referencing this component |
 | `path` | `str` | Override component root directory (relative to project root) |
-| `components` | `list[str]` | Sub-components grouped under this component |
+| `subcomponents` | `list[str]` | Components grouped under this container (by name or alias) |
 
 ### Component (Runtime)
 
@@ -33,6 +34,7 @@ The runtime `Component` object resolves all paths and provides:
 - `testing` — `TestingConfiguration` with resolved test sources
 - `docs` — `DocsConfiguration` with resolved doc sources
 - `is_subcomponent` — whether this component is nested under another
+- `is_container` — whether this component groups subcomponents
 
 ### Include Directories
 

@@ -331,3 +331,57 @@ silently ignored by the build.
   Such a platform declares that tool in its `feature_model:` pipeline instead of `KConfigEdit`, and
   whatever writes the selection file back is part of that pipeline too.
 - Editing uses kconfiglib's editors directly; kspl is only the cross-variant viewer.
+
+## Container and Integration Components
+
+**Decision:** grouping components and testing them together are two concepts. A component that lists
+`subcomponents` is a container: selecting it selects it and all its subcomponents, recursively. A
+component that lists `integrates` is an integration component: it compiles the sources of the
+components it integrates again, without selecting them. The `ComponentResolver` handles both, so
+every consumer receives the expanded selection and the integration component's full source and
+include lists.
+
+### Why
+
+The two goals pull the selection in opposite directions. A container exists so a variant can select
+several components with one name instead of repeating all their names: it changes what is built. An integration test exists to compile
+several components together next to a test without listing their files: it must not change what is
+built, add no selected component and leave every unit-test coverage untouched.
+
+One concept for both was tried first: a container with tests that compiles its subcomponents again.
+It fails on the case it was meant for. A variant selects its components, and a test platform adds an
+integration test over the same components, so they are selected twice. The container also selects
+components the variant does not, which changes the variant's unit tests and coverage.
+
+### Containers
+
+- Each subcomponent builds exactly as if it were selected directly. The container has no `sources`,
+  `include_directories` or `testing` of its own; a build backend gives it only targets that build
+  its subcomponents.
+- A component selected twice, directly and through a container or through two containers, is an
+  error naming both ways. Silently merging the two selections would hide which one counts.
+- Requiring a container gives the public include directories of all its subcomponents.
+
+### Integration components
+
+- Its resolved `sources` are its own plus the productive sources of every integrated component; a
+  container stands for all its subcomponents.
+- Its include directories add each integrated component's resolved include directories, private
+  ones and source folders included, because compiling their sources needs them. All its files
+  compile with that union.
+- A build backend needs no special case: it is a component with sources and tests. Its objects are
+  its own, so its coverage stays separate from the integrated components' unit tests.
+
+### Entries by alias
+
+A `subcomponents` or `integrates` entry is a name or an alias, resolved like `required_components`.
+The selected component with that alias wins (the platform's choice); a container listing it by alias
+does not select it again. Otherwise the one declared component carrying the alias is used. An alias
+shared by several declared components, none of them selected, is an error that lists the candidates.
+
+### Consequences
+
+- Selection errors (duplicates, container cycles, ambiguous aliases, a container with its own
+  sources) surface when the resolver is created, not at load; an integration cycle surfaces when
+  the components are resolved.
+- A resolved container exposes `is_container` and its resolved `subcomponents`.
