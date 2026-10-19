@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.0 (2026-10-19)
+
+### Features
+
+- Add container and integration components ([`7dd4977`](https://github.com/yanga-project/yanga-core/commit/7dd497708116a2212c403b8288429aaac2577e56))
+
 ## v0.12.0 (2026-09-18)
 
 ### Features
