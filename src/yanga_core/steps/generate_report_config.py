@@ -38,14 +38,12 @@ class GenerateReportConfig(PipelineStep[ExecutionContext]):
         self.logger.info(f"Run {self.get_name()}")
         relevant_files_entries = self.execution_context.data_registry.find_data(ReportRelevantFiles)
 
-        components_data: dict[str, list[ReportRelevantFiles]] = {}
+        # Every selected component gets an entry, even without report files (e.g. a container).
+        components_data: dict[str, list[ReportRelevantFiles]] = {component.name: [] for component in self.execution_context.components}
         variant_data: list[ReportRelevantFiles] = []
         for entry in relevant_files_entries:
             if entry.target.component_name:
-                if entry.target.component_name in components_data:
-                    components_data[entry.target.component_name].append(entry)
-                else:
-                    components_data[entry.target.component_name] = [entry]
+                components_data.setdefault(entry.target.component_name, []).append(entry)
             else:
                 variant_data.append(entry)
 

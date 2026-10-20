@@ -23,6 +23,7 @@ def env(tmp_path: Path) -> ExecutionContext:
     env.data_registry = DataRegistry()
     env.platform = None
     env.user_request = UserRequest(UserRequestScope.VARIANT, variant_name="mock_variant")
+    env.components = []
     return env
 
 
@@ -38,6 +39,7 @@ def env_with_platform(tmp_path: Path) -> ExecutionContext:
     env.platform = Mock()
     env.platform.name = "test_platform"
     env.user_request = UserRequest(UserRequestScope.VARIANT, variant_name="mock_variant", build_type="Debug")
+    env.components = []
     return env
 
 
@@ -59,6 +61,18 @@ def test_generate_report_config_empty_registry(env: ExecutionContext) -> None:
     assert config_data["variant_name"] == "mock_variant"
     assert config_data["platform_name"] == ""
     assert config_data["components"] == []
+
+
+def test_generate_report_config_lists_selected_component_without_files(env: ExecutionContext) -> None:
+    container = Mock()
+    container.name = "container"
+    env.components = [container]  # type: ignore[misc]
+
+    GenerateReportConfig(env).run()
+
+    config_data = SphinxReportConfig.from_dict(json.loads((env.spl_paths.variant_build_dir / "report_config.json").read_text()))
+    assert [component.name for component in config_data.components] == ["container"]
+    assert config_data.components[0].files == []
 
 
 def test_generate_report_config_with_components(env_with_platform: ExecutionContext) -> None:
