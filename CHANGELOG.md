@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.1 (2026-10-20)
+
+### Bug fixes
+
+- List every selected component in the report config ([`cdd423e`](https://github.com/yanga-project/yanga-core/commit/cdd423e89b7d791a2a5b4e068a29292327f5974e))
+
 ## v0.13.0 (2026-10-19)
 
 ### Features
