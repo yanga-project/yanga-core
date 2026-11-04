@@ -4,7 +4,7 @@ How to set up a development environment and contribute to yanga-core.
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - [uv](https://github.com/astral-sh/uv) (package manager)
 - [pypeline-runner](https://github.com/cuinixam/pypeline) (automation)
 
@@ -49,7 +49,7 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs:
 
 1. **Lint** (`PreCommit` step) — Ruff linting/formatting via pre-commit
 2. **Commit Lint** — enforces conventional commits
-3. **Test** — matrix: Python 3.10 & 3.13 on Ubuntu, Windows, and macOS
+3. **Test** — matrix: Python 3.11 & 3.13 on Ubuntu, Windows, and macOS
 4. **Release** — semantic versioning with automatic PyPI publishing
 
 ## Definition of Done

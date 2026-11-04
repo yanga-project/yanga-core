@@ -1,15 +1,10 @@
 import configparser
-import sys
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from mashumaro import DataClassDictMixin
-
-if sys.version_info >= (3, 11):
-    import tomllib  # Python 3.11 and later
-else:
-    import tomli as tomllib  # For earlier Python versions
 
 
 @dataclass

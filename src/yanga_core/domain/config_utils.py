@@ -1,14 +1,8 @@
-import sys
 from pathlib import Path
-from typing import Any, Protocol, TypeVar, cast
+from typing import Any, Protocol, Self, TypeVar, cast
 
 from yanga_core.domain.config import ConfigFile
 from yanga_core.domain.execution_context import ExecutionContext
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 
 
 class ConfigPrototype(Protocol):
