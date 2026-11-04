@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.2 (2026-11-04)
+
+### Bug fixes
+
+- Update pip and certifi for the emsign ca incident and require python 3.11 ([`f0a1bba`](https://github.com/yanga-project/yanga-core/commit/f0a1bbacaf94813929ae4b3296600b3db9d4fca6))
+
 ## v0.13.1 (2026-10-20)
 
 ### Bug fixes
