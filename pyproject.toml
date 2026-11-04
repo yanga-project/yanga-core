@@ -7,13 +7,12 @@ license = "MIT"
 authors = [
   { name = "cuinixam", email = "cuinixam@gmail.com" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Developers",
   "Natural Language :: English",
   "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -23,7 +22,7 @@ classifiers = [
 
 dependencies = [
   "py-app-dev>=2.22,<3",
-  "pypeline-runner>=1.38,<2",
+  "pypeline-runner>=1.41.0,<2",
   "typer>=0,<1",
   "mashumaro>=3.13,<4",
   "clanguru>=0,<1",

@@ -1,20 +1,14 @@
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import yaml
 from py_app_dev.core.config import ConfigElement, parse_config_element
 from py_app_dev.core.exceptions import UserNotificationException
 from py_app_dev.core.pipeline import PipelineConfig as GenericPipelineConfig
 from pypeline.domain.pipeline import PipelineConfig
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 
 
 @dataclass
