@@ -34,6 +34,10 @@ class GenerateReportConfig(PipelineStep[ExecutionContext]):
     def get_name(self) -> str:
         return self.__class__.__name__
 
+    def get_needs_dependency_management(self) -> bool:
+        # The registry it reads is rebuilt on every run and is no file the deps check could see.
+        return False
+
     def run(self) -> int:
         self.logger.info(f"Run {self.get_name()}")
         relevant_files_entries = self.execution_context.data_registry.find_data(ReportRelevantFiles)
