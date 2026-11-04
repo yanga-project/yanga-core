@@ -151,3 +151,7 @@ def test_generate_report_config_with_components(env_with_platform: ExecutionCont
     for config in [component1_config, component2_config]:
         for field in ["lint_results", "coverage_results", "other_files"]:
             assert config.__getattribute__(field) == []
+
+
+def test_always_runs(env: ExecutionContext) -> None:
+    assert GenerateReportConfig(env).needs_dependency_management is False

@@ -7,6 +7,7 @@ import pytest
 from yanga_core.docs.sphinx import SphinxConfig, SphinxReportConfig
 from yanga_core.domain.execution_context import UserRequest, UserRequestScope, UserRequestTarget
 from yanga_core.domain.reports import (
+    ComponentReportData,
     ReportData,
     ReportRelevantFiles,
     ReportRelevantFileType,
@@ -87,3 +88,23 @@ def test_sphinx_config_no_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
     config = SphinxConfig()
     assert config.report_data is None
     assert config.project == "Unknown"
+
+
+def test_component_test_results_follow_sources(tmp_path: Path) -> None:
+    def files(file_type: ReportRelevantFileType, name: str, html: ReportRelevantHtmlContent | None = None) -> ReportRelevantFiles:
+        target = UserRequest(UserRequestScope.COMPONENT, component_name="comp", target=UserRequestTarget.TEST)
+        return ReportRelevantFiles(target=target, file_type=file_type, files_to_be_included=[tmp_path / name] if name else [], html_content=html)
+
+    component = ComponentReportData(
+        name="comp",
+        files=[
+            files(ReportRelevantFileType.DOCS, "index.md"),
+            files(ReportRelevantFileType.TEST_RESULT, "comp_test_report.rst"),
+            files(ReportRelevantFileType.SOURCES, "comp.c.md"),
+            files(ReportRelevantFileType.OTHER, "notes.md"),
+            files(ReportRelevantFileType.COVERAGE_RESULT, "", ReportRelevantHtmlContent(name="Coverage Report", index_html=Path("coverage/index.html"))),
+        ],
+    )
+    config = SphinxReportConfig(project_dir=tmp_path, scope=ReportScope.COMPONENT, component_name="comp", components=[component])
+
+    assert config.get_component_files_list("comp") == ["/index.md", "/comp.c.md", "/comp_test_report.rst", "/notes.md", "Coverage Report <./coverage/index.html#http://>"]
