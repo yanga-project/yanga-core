@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.3 (2026-11-04)
+
+### Bug fixes
+
+- Always regenerate the report config and list test results after sources ([`c7d8319`](https://github.com/yanga-project/yanga-core/commit/c7d83193d98bf915abb106bef35d760ab022f547))
+
 ## v0.13.2 (2026-11-04)
 
 ### Bug fixes
