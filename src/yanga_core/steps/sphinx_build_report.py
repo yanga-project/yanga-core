@@ -13,6 +13,7 @@ from pypeline.domain.pipeline import PipelineStep
 
 from yanga_core.commands.fix_html_links import fix_html_links
 from yanga_core.docs.sphinx import SphinxConfig
+from yanga_core.domain.publish_manifest import PublishedFile, PublishKind
 from yanga_core.domain.reports import REPORT_CONFIG_FILE_NAME
 from yanga_core.steps.register_spl_paths import get_registered_spl_paths
 
@@ -58,6 +59,7 @@ class SphinxBuildReport(PipelineStep[ExecutionContext]):
         results = fix_html_links(self.output_root)
         for failure in (result for result in results if not result.success):
             self.logger.warning(failure.error_message)
+        self.execution_context.data_registry.insert(PublishedFile(kind=PublishKind.REPORT, name="SPL documentation", path=self.output_root / "index.html"), self.get_name())
         self.logger.info(f"Rendered SPL report to {self.output_root} ({sum(r.fixes_count for r in results)} external artifact links fixed)")
         return 0
 

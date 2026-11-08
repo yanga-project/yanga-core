@@ -154,8 +154,8 @@ class ReportData(BaseConfigJSONMixin):
 
     One payload for all three scopes. It carries the report-relevant *generated* content
     (files + references to generated HTML); authored files are toctree'd by the user directly
-    in `index.md` and never appear here. SPL reuses this shape unchanged: its `variant_data`
-    holds one HTML reference per built variant, and `scope` tells the template how to frame it.
+    in `index.md` and never appear here. For SPL it frames the SPL documentation report; the
+    variants are listed by the SPL overview from the publish manifests.
     """
 
     project_dir: Path

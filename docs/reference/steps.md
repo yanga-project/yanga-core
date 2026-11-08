@@ -109,29 +109,11 @@ First step of the SPL report pipeline (see [Generate an SPL report](../how-to/sp
 
 ---
 
-## `CollectVariantReports`
-
-**Module:** `yanga_core.steps.collect_variant_reports`
-
-Discovers every built variant report on disk and gathers it into `<spl_report_dir>/variants/…`, registering a `CollectedVariantReport` for each one. The collected layout (mirroring the build tree) plus the registrations are the hand-off contract for the following steps: every source deposits into the same structure, so downstream never cares whether a report was built locally or downloaded.
-
-**Behavior (`local` source):**
-- Discovery is marker-based: a variant build leaves its `report_config.json` next to the rendered `reports/` directory, so this step globs the variant build root for variant-scope markers with a rendered `reports/index.html` — whatever the build layout depth (with or without a build type). No project configuration is consulted: whatever was built is collected, including builds of since-removed variants until their build directories are wiped.
-- Copies each discovered `reports/` directory into the collected layout, preserving its path relative to the variant build root (e.g. `variants/Disco/gtest/Debug/`)
-
-**Configuration:**
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `source` | `local` | Where the built reports come from (`local` only for now) |
-
----
-
 ## `GenerateSplReportConfig`
 
 **Module:** `yanga_core.steps.generate_spl_report_config`
 
-The SPL analogue of `GenerateReportConfig`: turns the registered `CollectedVariantReport` entries into a `report_config.json` with `scope: SPL`, containing one HTML link per collected variant report.
+The SPL analogue of `GenerateReportConfig`: writes a `report_config.json` with `scope: SPL` for the SPL documentation report. The project's `index.md` branches on that scope to document what belongs to the whole product line. The variants are listed by the SPL overview (`RenderSplOverview`), not here.
 
 **Output:** `<spl_report_dir>/report_config.json`
 
@@ -154,3 +136,47 @@ Runs `sphinx-build` over the project's `conf.py`/`index.md` with the `REPORT_CON
 | Option | Default | Description |
 |--------|---------|-------------|
 | `source_dir` | `.` | Sphinx source directory (holds `conf.py` and the master `index.md`) |
+
+It registers the rendered report as a `PublishedFile`, so a `WritePublishManifest` after it lists the SPL documentation report in the SPL manifest.
+
+---
+
+## `WritePublishManifest`
+
+**Module:** `yanga_core.steps.write_publish_manifest`
+
+Writes `publish_manifest.json`: what this run publishes and where readers find it. The SPL overview reads only these manifests. Steps that make a file to publish register a `PublishedFile` (kind `REPORT` or `ARTIFACT`, a name and the path on disk); this step lists those whose file exists, so put it last.
+
+- In a variant build it writes into `<variant_build_dir>` with the variant, platform, build type, the variant description and the selected features.
+- In the SPL pipeline (after `RegisterSplPaths`) it writes into `<spl_build_dir>`.
+- Both record the commit (`git rev-parse HEAD`, empty outside a git checkout) and the build time.
+- Locally nothing is published, so each link is relative to the build dir, which is the site root. A file outside the build dir is an error: a `file://` link would break as soon as the site moves.
+
+---
+
+## `CollectPublishManifests`
+
+**Module:** `yanga_core.steps.collect_publish_manifests`
+
+Finds every `publish_manifest.json` under the variant build root and in the SPL build dir and registers it for `RenderSplOverview`. It reads only the disk and copies nothing: a download step that runs before it restores manifests and outputs into the same layout. Whatever was built is listed, including builds of removed variants until their build directories are wiped.
+
+---
+
+## `RenderSplOverview`
+
+**Module:** `yanga_core.steps.render_spl_overview`
+
+Renders the project's Jinja2 template to `<build_dir>/index.html`, the SPL overview. The template gets one object, `overview`, with:
+
+- `project_name`, `generated_at`, `commit` (of the SPL documentation run)
+- `documentation`: the entries of the SPL manifest (`kind`, `name`, `link`)
+- `variants`: per variant `name`, `description`, `features` (from its newest build) and `builds`; per build `platform`, `build_type`, `commit`, `build_time`, `reports` and `artifacts`
+
+Links are relative to the site root, so the template uses them as they are.
+
+**Configuration:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `project_name` | project directory name | Product-line display name |
+| `template` | `spl_overview.html.jinja` | Template file, relative to the project root |
