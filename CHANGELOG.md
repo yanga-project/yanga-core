@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.14.0 (2026-11-08)
+
+### Features
+
+- Write publish manifests and render the spl overview from them ([`100f5d3`](https://github.com/yanga-project/yanga-core/commit/100f5d35346f30f89841b5516d1692e042e6a79f))
+
 ## v0.13.3 (2026-11-04)
 
 ### Bug fixes
