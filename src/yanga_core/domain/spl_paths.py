@@ -33,14 +33,16 @@ class SPLPaths(ProjectArtifactsLocator):
         self.external_dependencies_dir = yanga_out_dir / "ext" if create_yanga_build_dir else self.build_dir / "ext"
         #: SPL scope build directory; sibling of the variant builds.
         self.spl_build_dir = self.build_dir / "spl"
-        #: The self-contained SPL overview site: assembled here, publishable verbatim.
+        #: The SPL documentation report (Sphinx), linked from the overview.
         self.spl_report_dir = self.spl_build_dir / self.REPORTS_DIR_NAME
+        #: The SPL overview page. The build dir is the site root, so the overview links to the reports where the builds left them.
+        self.spl_overview_file = self.build_dir / "index.html"
         scripts_dir = "Scripts" if sys.platform.startswith("win32") else "bin"
         self.venv_scripts_dir = self.project_root_dir.joinpath(".venv").joinpath(scripts_dir)
 
     @property
     def variant_reports_dir(self) -> Path:
-        """Where a variant build renders its report; the SPL report collector discovers these."""
+        """Where a variant build renders its report."""
         return self.variant_build_dir / self.REPORTS_DIR_NAME
 
     def locate_artifact(self, artifact: str, first_search_paths: list[Path | None]) -> Path:
