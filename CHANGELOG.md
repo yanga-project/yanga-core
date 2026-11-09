@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.14.1 (2026-11-09)
+
+### Bug fixes
+
+- List lint results after the sources in the report toc ([`17e86f5`](https://github.com/yanga-project/yanga-core/commit/17e86f5c9d016ddaa239592f2b1f68561cbcb8fe))
+
 ## v0.14.0 (2026-11-08)
 
 ### Features
