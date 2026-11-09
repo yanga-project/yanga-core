@@ -99,6 +99,7 @@ def test_component_test_results_follow_sources(tmp_path: Path) -> None:
         name="comp",
         files=[
             files(ReportRelevantFileType.DOCS, "index.md"),
+            files(ReportRelevantFileType.LINT_RESULT, "comp_lint_report.md"),
             files(ReportRelevantFileType.TEST_RESULT, "comp_test_report.rst"),
             files(ReportRelevantFileType.SOURCES, "comp.c.md"),
             files(ReportRelevantFileType.OTHER, "notes.md"),
@@ -107,4 +108,11 @@ def test_component_test_results_follow_sources(tmp_path: Path) -> None:
     )
     config = SphinxReportConfig(project_dir=tmp_path, scope=ReportScope.COMPONENT, component_name="comp", components=[component])
 
-    assert config.get_component_files_list("comp") == ["/index.md", "/comp.c.md", "/comp_test_report.rst", "/notes.md", "Coverage Report <./coverage/index.html#http://>"]
+    assert config.get_component_files_list("comp") == [
+        "/index.md",
+        "/comp.c.md",
+        "/comp_lint_report.md",
+        "/comp_test_report.rst",
+        "/notes.md",
+        "Coverage Report <./coverage/index.html#http://>",
+    ]

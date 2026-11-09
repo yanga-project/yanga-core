@@ -44,8 +44,8 @@ class SphinxReportConfig(ReportData):
     def _collect_files_from_config(self, config: ComponentReportData | VariantReportData) -> list[str]:
         """Helper method to collect and relativize file paths from a configuration object."""
         content = []
-        # Test results after the sources they test; html reports (e.g. coverage) follow.
-        file_attributes = ["docs_files", "coverage_results", "lint_results", "sources", "test_results", "other_files"]
+        # Lint and test results after the sources they check; html reports (e.g. coverage) follow.
+        file_attributes = ["docs_files", "sources", "lint_results", "test_results", "coverage_results", "other_files"]
 
         for attr in file_attributes:
             if hasattr(config, attr):
