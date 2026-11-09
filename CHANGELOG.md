@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.14.2 (2026-11-09)
+
+### Bug fixes
+
+- Build the files listed in all_files of a report entry ([`9d360d2`](https://github.com/yanga-project/yanga-core/commit/9d360d2c2e6b2837d0a2159ed07fcc467989df08))
+
 ## v0.14.1 (2026-11-09)
 
 ### Bug fixes
