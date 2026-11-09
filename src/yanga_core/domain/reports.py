@@ -125,7 +125,7 @@ class VariantReportData(BaseConfigJSONMixin):
 
         One must make sure all files can be found by the documentation tool.
         """
-        return [file for entry in self.files for file in entry.files_to_be_included]
+        return [file for entry in self.files for file in (*entry.files_to_be_included, *entry.all_files)]
 
     def get_files_of_type(self, file_type: ReportRelevantFileType) -> list[Path]:
         relevant_files: list[ReportRelevantFiles] = [file for file in self.files if file.file_type == file_type]

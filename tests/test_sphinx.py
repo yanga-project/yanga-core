@@ -116,3 +116,12 @@ def test_component_test_results_follow_sources(tmp_path: Path) -> None:
         "/notes.md",
         "Coverage Report <./coverage/index.html#http://>",
     ]
+
+
+def test_all_files_are_built_but_not_listed_in_the_toc(tmp_path: Path) -> None:
+    target = UserRequest(UserRequestScope.COMPONENT, component_name="comp", target=UserRequestTarget.DOCS)
+    entry = ReportRelevantFiles(target=target, file_type=ReportRelevantFileType.SOURCES, files_to_be_included=[tmp_path / "sources.md"], all_files=[tmp_path / "comp.c.md"])
+    config = SphinxReportConfig(project_dir=tmp_path, scope=ReportScope.COMPONENT, component_name="comp", components=[ComponentReportData(name="comp", files=[entry])])
+
+    assert config.collect_all_files() == [tmp_path / "sources.md", tmp_path / "comp.c.md"]
+    assert config.get_component_files_list("comp") == ["/sources.md"]
