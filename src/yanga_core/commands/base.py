@@ -30,6 +30,11 @@ class CommandConfigBase(DataClassDictMixin):
         metadata={"help": "Project root directory. Defaults to the current directory if not specified."},
     )
 
+    def __post_init__(self) -> None:
+        # Every generated path derives from project_dir. Resolving writes the drive letter the way
+        # CMake does (`K:`), so ninja does not see `k:/x` and `K:/x` as two different files.
+        self.project_dir = self.project_dir.resolve()
+
 
 def prompt_user_to_select_option(options: list[str], prompt: str) -> str | None:
     if not options:
