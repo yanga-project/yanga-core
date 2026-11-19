@@ -1,10 +1,11 @@
 from collections import OrderedDict
+from collections.abc import Callable
 from pathlib import Path
 
 from py_app_dev.core.exceptions import UserNotificationException
 
-from .components import Component
-from .config import ComponentConfig, IncludeDirectoryScope
+from .components import Component, TestingBlock
+from .config import ComponentConfig, IncludeDirectoryScope, TestingBlockConfig
 from .spl_paths import SPLPaths
 
 
@@ -42,10 +43,9 @@ def _scoped_include_directories(config: ComponentConfig, scope: IncludeDirectory
     return [directory.path for directory in config.include_directories if directory.scope == scope]
 
 
-def _declared_test_sources(config: ComponentConfig) -> list[str]:
-    sources = list(config.testing.sources) if config.testing and config.testing.sources else []
-    sources.extend(config.test_sources)
-    return sources
+def resolve_testing_blocks(blocks: list[TestingBlockConfig], locate: Callable[[str], Path]) -> list[TestingBlock]:
+    """The testing blocks with every source and mockup source path located by ``locate``."""
+    return [TestingBlock(block.framework, [locate(source) for source in block.sources], [locate(source) for source in block.mockup_sources], block.config) for block in blocks]
 
 
 def _declared_docs_sources(config: ComponentConfig) -> list[str]:
@@ -138,10 +138,9 @@ class ComponentResolver:
             name=config.name,
             path=root,
             sources=list(OrderedDict.fromkeys(sources)),
-            test_sources=[root / source for source in _declared_test_sources(config)],
             docs_sources=[root / source for source in _declared_docs_sources(config)],
             include_directories=list(OrderedDict.fromkeys(include_directories)),
-            testing=config.testing,
+            testing=resolve_testing_blocks(config.testing, root.joinpath),
             docs=config.docs,
             required_components=config.required_components,
             alias=config.alias,
@@ -226,7 +225,7 @@ class ComponentResolver:
 
     def _subcomponent_names(self, config: ComponentConfig) -> list[str]:
         """Resolved subcomponent names; every container walk passes here, so it also validates the container."""
-        if config.subcomponents and (config.sources or config.include_directories or config.testing or config.test_sources):
+        if config.subcomponents and (config.sources or config.include_directories or config.testing):
             raise UserNotificationException(f"Container '{config.name}' must not declare sources, include directories or testing; they belong to its subcomponents.")
         return [self._entry_name(config, entry) for entry in config.subcomponents]
 

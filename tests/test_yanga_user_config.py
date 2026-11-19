@@ -1,3 +1,4 @@
+import re
 import textwrap
 from pathlib import Path
 
@@ -147,4 +148,80 @@ def test_removed_features_selection_file_key_is_an_error(tmp_path: Path) -> None
         )
     )
     with pytest.raises(UserNotificationException, match=r"'Disco'.*feature_selection"):
+        YangaUserConfig.from_file(config_file)
+
+
+def test_testing_blocks_on_component_and_variant(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        textwrap.dedent(
+            """\
+    components:
+      - name: main
+        testing:
+          - framework: gtest
+            sources: [test/test_main.cc]
+            mockup_sources: [test/helpers.c]
+            config:
+              mocking: {strict: true}
+          - framework: tessy
+            sources: [tessy/main.tmb]
+    variants:
+      - name: Disco
+        components: [main]
+        testing:
+          - framework: vecu
+            sources: [test/test_disco.py]
+            config: {timeout: 10}
+    """
+        )
+    )
+    config = YangaUserConfig.from_file(config_file)
+
+    gtest, tessy = config.components[0].testing
+    assert (gtest.framework, gtest.sources, gtest.mockup_sources, gtest.config) == ("gtest", ["test/test_main.cc"], ["test/helpers.c"], {"mocking": {"strict": True}})
+    assert (tessy.framework, tessy.sources, tessy.mockup_sources, tessy.config) == ("tessy", ["tessy/main.tmb"], [], {})
+    (vecu,) = config.variants[0].testing
+    assert (vecu.framework, vecu.sources, vecu.config) == ("vecu", ["test/test_disco.py"], {"timeout": 10})
+
+
+def test_testing_defaults_to_no_blocks(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("components:\n  - name: main\nvariants:\n  - name: Disco\n")
+    config = YangaUserConfig.from_file(config_file)
+
+    assert config.components[0].testing == []
+    assert config.variants[0].testing == []
+
+
+@pytest.mark.parametrize("section", ["components", "variants"])
+@pytest.mark.parametrize(
+    ("blocks", "message"),
+    [
+        ("[{sources: [a.cc]}]", r"'Disco'.*'framework'"),
+        ("[{framework: gtest}, {framework: gtest}]", r"'Disco'.*'gtest'"),
+    ],
+    ids=["missing-framework", "repeated-framework"],
+)
+def test_invalid_testing_blocks_are_refused(tmp_path: Path, section: str, blocks: str, message: str) -> None:
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(f"{section}:\n  - name: Disco\n    testing: {blocks}\n")
+    with pytest.raises(UserNotificationException, match=message):
+        YangaUserConfig.from_file(config_file)
+
+
+@pytest.mark.parametrize(
+    ("config", "owner", "old_key"),
+    [
+        ("components:\n  - name: spled\n    testing: {sources: [test/test_spled.cc]}\n", "Component 'spled'", "'testing'"),
+        ("components:\n  - name: spled\n    test_sources: [test/test_spled.cc]\n", "Component 'spled'", "test_sources"),
+        ("variants:\n  - name: Disco\n    testing: {sources: [test/test_spled.cc]}\n", "Variant 'Disco'", "'testing'"),
+    ],
+    ids=["component-testing-mapping", "component-test-sources", "variant-testing-mapping"],
+)
+def test_old_testing_forms_point_to_the_new_form(tmp_path: Path, config: str, owner: str, old_key: str) -> None:
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(config)
+    snippet = r"testing:\s*- framework: gtest\s*" + re.escape("sources: [test/test_spled.cc]")
+    with pytest.raises(UserNotificationException, match=rf"(?s){re.escape(owner)}.*{re.escape(old_key)}.*{snippet}"):
         YangaUserConfig.from_file(config_file)

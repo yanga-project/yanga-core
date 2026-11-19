@@ -7,8 +7,8 @@ from pypeline.domain.artifacts import ProjectArtifactsLocator
 from pypeline.domain.execution_context import ExecutionContext as _ExecutionContext
 from pypeline.domain.external_project import ExternalProject
 
-from .component_resolver import ComponentResolver
-from .components import Component
+from .component_resolver import ComponentResolver, resolve_testing_blocks
+from .components import Component, TestingBlock
 from .config import ComponentConfig, ConfigFile, FeatureModelConfig, PlatformConfig, VariantConfig
 from .spl_paths import SPLPaths
 
@@ -131,6 +131,14 @@ class ExecutionContext(_ExecutionContext):
         if not variant_platform or not variant_platform.feature_selection:
             return None
         return self.spl_paths.locate_artifact(variant_platform.feature_selection.file, [variant.file])
+
+    @property
+    def variant_testing(self) -> list[TestingBlock]:
+        """The variant's testing blocks, paths resolved next to the variant's file, then in the project; empty when not declared."""
+        variant = self.variant
+        if not variant:
+            return []
+        return resolve_testing_blocks(variant.testing, lambda source: self.spl_paths.locate_artifact(source, [variant.file]))
 
     @property
     def components(self) -> list[Component]:

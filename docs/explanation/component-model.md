@@ -66,6 +66,46 @@ self-contained `Component` is the seam that keeps them apart.
 See [design decisions](design-decisions.md) for *why* resolution is lazy and
 consumption-time.
 
+## Testing blocks
+
+A component and a variant declare their tests in `testing`, a list with one block
+per test framework:
+
+```yaml
+components:
+  - name: main
+    testing:
+      - framework: gtest
+        sources: [test/test_main.cc]
+        mockup_sources: [test/fake_clock.c]
+        config:
+          mocking: {strict: true}
+      - framework: tessy
+        sources: [tessy/main.tmb]
+variants:
+  - name: Disco
+    components: [main]
+    testing:
+      - framework: vecu
+        sources: [test/test_disco.py]
+```
+
+- **`framework`** is required and a plain name. yanga-core does not know the
+  frameworks; each platform builds the blocks its generators can run.
+- **`sources`** are the test code, **`mockup_sources`** test-only helper code: it
+  is built with the tests, but it is not productive code, so it does not count
+  for coverage.
+- **`config`** is passed on as it is. The generator of that framework reads it
+  into its own dataclass.
+- **One block per framework.** A block without `framework`, or a second block for
+  the same framework in one list, is an error that names the component or variant.
+- **Resolved paths.** A component's paths are under the component root. On the
+  resolved `Component`, `testing` is the list of resolved blocks, `test_sources`
+  lists the sources of all blocks, and `is_testable(framework=None)` says whether
+  any block, or the one of that framework, has sources. A variant's paths are
+  looked up next to the variant's file, then in the project root; generators read
+  them from `ExecutionContext.variant_testing`.
+
 ## Container and integration components
 
 A component that lists `subcomponents` is a **container**: it groups other
@@ -80,7 +120,8 @@ components:
   - name: test_networking
     integrates: [networking]
     testing:
-      sources: [test/test_networking.cc]
+      - framework: gtest
+        sources: [test/test_networking.cc]
 ```
 
 - **Selecting a container** selects it and its subcomponents, depth first, in

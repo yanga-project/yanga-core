@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from yanga_core.domain.config import ComponentConfig, FeatureSelectionConfig, PlatformConfig, VariantConfig, VariantPlatformsConfig
+from yanga_core.domain.config import ComponentConfig, FeatureSelectionConfig, PlatformConfig, TestingBlockConfig, VariantConfig, VariantPlatformsConfig
 from yanga_core.domain.execution_context import ExecutionContext, UserRequest, UserRequestScope, UserRequestTarget, UserVariantRequest
 from yanga_core.domain.reports import ReportRelevantFiles, ReportRelevantFileType
 
@@ -90,3 +90,32 @@ def test_feature_selection_files_follow_the_variant_declarations(tmp_path: Path,
 
     assert context.variant_feature_selection_file == (tmp_path / product if product else None)
     assert context.variant_platform_feature_selection_file == (tmp_path / platform if platform else None)
+
+
+def test_variant_testing_is_found_next_to_the_variant_then_in_the_project(tmp_path: Path) -> None:
+    for relative in ("variants/Disco/yanga.yaml", "variants/Disco/test/test_disco.py", "test/helpers.py"):
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).touch()
+    context = ExecutionContext(
+        project_root_dir=tmp_path,
+        variant_name="Disco",
+        user_request=UserVariantRequest("Disco"),
+        variant=VariantConfig(
+            name="Disco",
+            testing=[TestingBlockConfig(framework="vecu", sources=["test/test_disco.py"], mockup_sources=["test/helpers.py"], config={"timeout": 10})],
+            file=tmp_path / "variants/Disco/yanga.yaml",
+        ),
+        create_yanga_build_dir=False,
+    )
+
+    (vecu,) = context.variant_testing
+    assert (vecu.framework, vecu.sources, vecu.mockup_sources, vecu.config) == (
+        "vecu",
+        [tmp_path / "variants/Disco/test/test_disco.py"],
+        [tmp_path / "test/helpers.py"],
+        {"timeout": 10},
+    )
+
+
+def test_no_variant_has_no_testing(tmp_path: Path) -> None:
+    assert make_context(tmp_path).variant_testing == []

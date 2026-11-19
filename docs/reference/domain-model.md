@@ -18,7 +18,7 @@ Defined in `yanga.yaml`:
 | `include_directories` | `list[IncludeDirectory]` | Include paths with `PUBLIC`/`PRIVATE` scope |
 | `required_components` | `list[str]` | Dependencies on other components |
 | `integrates` | `list[str]` | Components whose sources this component compiles again (by name, alias or container); they are not selected |
-| `testing` | `TestingConfiguration` | Test sources and mocking configuration |
+| `testing` | `list[TestingBlockConfig]` | Tests, one block per framework (`framework`, `sources`, `mockup_sources`, `config`) |
 | `docs` | `DocsConfiguration` | Documentation sources |
 | `alias` | `str` | Alternative name for referencing this component |
 | `path` | `str` | Override component root directory (relative to project root) |
@@ -31,7 +31,9 @@ The runtime `Component` object resolves all paths and provides:
 - `name`, `path` — resolved component identity and location
 - `sources` — resolved source file paths
 - `include_dirs` — resolved `IncludeDirectory` list
-- `testing` — `TestingConfiguration` with resolved test sources
+- `testing`: `list[TestingBlock]`, the testing blocks with resolved paths
+- `test_sources`: the resolved sources of all testing blocks
+- `is_testable(framework=None)`: whether any block, or the one of `framework`, has sources
 - `docs` — `DocsConfiguration` with resolved doc sources
 - `is_subcomponent` — whether this component is nested under another
 - `is_container` — whether this component groups subcomponents
@@ -60,6 +62,7 @@ A `VariantConfig` defines a product configuration:
 | `feature_selection` | `FeatureSelectionConfig` | Selection for the product feature model |
 | `configs` | `list[ConfigFile]` | Variant-level config entries |
 | `platforms` | `dict[str, VariantPlatformsConfig]` | Platform-specific overrides |
+| `testing` | `list[TestingBlockConfig]` | Tests of the whole variant, one block per framework; paths next to the variant's file, then in the project root |
 
 A `VariantPlatformsConfig` entry adds `components`, `configs` and a `feature_selection` for that platform's feature model.
 
