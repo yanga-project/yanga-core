@@ -1839,7 +1839,7 @@ wheels = [
 
 [[package]]
 name = "yanga-core"
-version = "0.14.2"
+version = "0.15.0"
 source = { editable = "." }
 dependencies = [
     { name = "clanguru" },

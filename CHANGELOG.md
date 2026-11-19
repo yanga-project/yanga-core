@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.15.0 (2026-11-19)
+
+### Features
+
+- Testing blocks per framework on components and variants (ycore-002) ([`c06b1c0`](https://github.com/yanga-project/yanga-core/commit/c06b1c0f5b41086208fb1318371320656635ae9c))
+
+### Documentation
+
+- Set up the backlog with ycore-001 and ycore-002 ([`4b3be15`](https://github.com/yanga-project/yanga-core/commit/4b3be15f929fb2d2cf1a955e0fee484333bbd843))
+
 ## v0.14.2 (2026-11-09)
 
 ### Bug fixes
