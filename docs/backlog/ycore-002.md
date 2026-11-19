@@ -1,5 +1,5 @@
 ---
-status: Ready
+status: Done (2026-11-19)
 priority: Medium
 ---
 
@@ -24,23 +24,23 @@ Today tests exist only on a component, in `testing.sources` or the older `test_s
 
 ## Acceptance criteria
 
-- [ ] A component and a variant accept `testing` as a list of framework blocks with `framework`, `sources`, `mockup_sources` and `config`
-- [ ] A block without `framework` is refused with a message that names the component or variant
-- [ ] Two blocks with the same framework in one list are refused with a message that names the component or variant and the framework
-- [ ] The resolved component carries its blocks, with source and mockup source paths under the component root
-- [ ] `is_testable()` is true when any block has sources; `is_testable("gtest")` only when the `gtest` block has sources
-- [ ] The generators of a run can read the resolved blocks of the selected variant, with paths found next to the variant's file, then in the project root
-- [ ] A variant without `testing` resolves exactly as today
-- [ ] The component model documentation describes the testing blocks
-- [ ] `pypeline run` is green
+- [x] A component and a variant accept `testing` as a list of framework blocks with `framework`, `sources`, `mockup_sources` and `config`
+- [x] A block without `framework` is refused with a message that names the component or variant
+- [x] Two blocks with the same framework in one list are refused with a message that names the component or variant and the framework
+- [x] The resolved component carries its blocks, with source and mockup source paths under the component root
+- [x] `is_testable()` is true when any block has sources; `is_testable("gtest")` only when the `gtest` block has sources
+- [x] The generators of a run can read the resolved blocks of the selected variant, with paths found next to the variant's file, then in the project root
+- [x] A variant without `testing` resolves exactly as today
+- [x] The component model documentation describes the testing blocks
+- [x] `pypeline run` is green
 
 ## Refinement notes
 
 Findings from reading the code on 2026-11-19 (branch `feat/collect-reads-disk-only`, 0.13.1 plus one commit; `main` is at 0.14.2 and has not changed the code this item touches).
 
 - **Where the config checks go.** An error raised while a field is decoded loses its message (the existing comment on `YangaUserConfig.__pre_deserialize__`). The two checks (missing `framework`, repeated framework) therefore go next to the existing `features_selection_file` check in `YangaUserConfig.__pre_deserialize__`, which sees the component and variant names. A `ComponentConfig` built in Python is not checked; that is the calling code's responsibility.
-- **No union type.** A probe showed that a union `list[TestingBlock] | TestingConfig` decodes a block without `framework` silently to `testing: None`. With the old forms dropped, the field is `list[TestingBlock]` only.
-- **What the removed forms do.** A probe showed: a leftover `test_sources` key is ignored, so its tests are no longer built. A leftover old `testing` dict is not ignored, because the `testing` key still exists: loading fails with mashumaro's own error, `Field "testing" of type list[TestingBlock] in ComponentConfig has invalid value {...}`.
+- **No union type.** A probe showed that a union `list[TestingBlockConfig] | TestingConfig` decodes a block without `framework` silently to `testing: None`. With the old forms dropped, the field is `list[TestingBlockConfig]` only.
+- **What the removed forms do.** A probe showed: a leftover `test_sources` key is ignored, so its tests are no longer built. A leftover old `testing` dict is not ignored, because the `testing` key still exists: loading fails with mashumaro's own error, `Field "testing" of type list[TestingBlockConfig] in ComponentConfig has invalid value {...}`.
 - **What yanga reads today.** `component.test_sources` (gtest generator and report config), `component.is_testable` as a property (gtest generator) and `component.testing.mocking` (gtest generator). The last two change; YANGA-004 adapts them.
 - **Where the variant's blocks live.** `ExecutionContext.variant` already holds the `VariantConfig`; `variant_feature_selection_file` is the pattern for a resolved value. `ExecutionContext.variant_testing` follows it. `locate_artifact` fails on a missing file, which is the wanted behaviour.
 - **The container check.** `_subcomponent_names` refuses a container with `testing`; an empty list still counts as no testing. Its `test_sources` part goes away with the field.
@@ -59,7 +59,7 @@ Findings from reading the code on 2026-11-19 (branch `feat/collect-reads-disk-on
 
 ## Plan
 
-1. **Config model.** Add `TestingBlock(ConfigElement)` with `framework`, `sources`, `mockup_sources`, `config: dict[str, Any]`. `ComponentConfig.testing` and a new `VariantConfig.testing` become `list[TestingBlock]` (default empty). Remove `TestingConfig` and `ComponentConfig.test_sources`; keep `MockingConfig`. Touches `src/yanga_core/domain/config.py`. Check: a test that reads a component and a variant with two blocks through `YangaUserConfig.from_dict`.
+1. **Config model.** Add `TestingBlockConfig(ConfigElement)` with `framework`, `sources`, `mockup_sources`, `config: dict[str, Any]`. `ComponentConfig.testing` and a new `VariantConfig.testing` become `list[TestingBlockConfig]` (default empty). Remove `TestingConfig` and `ComponentConfig.test_sources`; keep `MockingConfig`. Touches `src/yanga_core/domain/config.py`. Check: a test that reads a component and a variant with two blocks through `YangaUserConfig.from_dict`.
 2. **Config checks.** In `YangaUserConfig.__pre_deserialize__`, refuse a block without `framework` and a repeated framework, each message naming the component or variant. Touches `config.py`. Check: one parametrized test over both cases, for a component and a variant, matching the message.
 3. **Resolved blocks on the component.** Add a resolved block type (framework, located `sources` and `mockup_sources`, `config`). `Component.testing` becomes a list of it, `test_sources` a property over all blocks, `is_testable(framework=None)` a method. Replace `_declared_test_sources` in the resolver with a function that returns the blocks with paths under the component root, and drop `test_sources` from the container check. Touches `components.py`, `component_resolver.py`, `tests/test_component_resolver.py` (its `TestingConfig` uses). Check: parametrize `test_is_testable_reflects_declared_test_sources` over no framework, a matching and a missing framework; a test for `mockup_sources` paths; the container test keeps passing.
 4. **Variant blocks for generators.** Add `ExecutionContext.variant_testing`, the variant's resolved blocks with paths found by `locate_artifact` next to the variant's file, then in the project root; empty when there is no variant or no `testing`. Touches `execution_context.py`. Check: a test with a variant with blocks and one without.

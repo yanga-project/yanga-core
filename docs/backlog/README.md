@@ -14,8 +14,6 @@
 
 ### Ready
 
-- [YCORE-002 — Testing blocks per framework on components and variants](ycore-002.md)
-
 ---
 
 ## Notes

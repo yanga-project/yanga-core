@@ -51,11 +51,17 @@ class MockingConfig(ConfigElement):
 
 
 @dataclass
-class TestingConfig(ConfigElement):
-    #: Component test sources
+class TestingBlockConfig(ConfigElement):
+    """The tests of one test framework; yanga-core does not know the frameworks, their generators read ``config``."""
+
+    #: Test framework name, e.g. ``gtest``
+    framework: str
+    #: Test sources
     sources: list[str] = field(default_factory=list)
-    #: Mocking configuration
-    mocking: MockingConfig | None = None
+    #: Test-only helper sources, built with the tests but not counted as productive code
+    mockup_sources: list[str] = field(default_factory=list)
+    #: Framework specific settings, passed on as they are
+    config: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -185,6 +191,8 @@ class VariantConfig(ConfigElement):
     feature_selection: FeatureSelectionConfig | None = None
     #: Generic config files for steps
     configs: list[ConfigFile] = field(default_factory=list)
+    #: Tests of the whole variant, one block per test framework; paths are looked up next to the variant's file, then in the project root
+    testing: list[TestingBlockConfig] = field(default_factory=list)
     # This field is intended to keep track of where configuration was loaded from and
     # it is automatically added when configuration is loaded from file
     file: Path | None = None
@@ -239,10 +247,8 @@ class ComponentConfig(ConfigElement):
     subcomponents: list[str] = field(default_factory=list)
     #: Component sources
     sources: list[str] = field(default_factory=list)
-    #: Component test sources
-    test_sources: list[str] = field(default_factory=list)
-    #: Testing
-    testing: TestingConfig | None = None
+    #: Tests, one block per test framework
+    testing: list[TestingBlockConfig] = field(default_factory=list)
     #: Documentation sources
     docs_sources: list[str] = field(default_factory=list)
     #: Documentation configuration
@@ -275,6 +281,29 @@ class ComponentConfig(ConfigElement):
         return [d.path for d in self.include_directories if d.scope == IncludeDirectoryScope.PUBLIC]
 
 
+def _check_testing_blocks(kind: str, entries: list[Any]) -> None:
+    """Refuse the old testing forms, a block without ``framework`` and a repeated framework, naming the component or variant."""
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        blocks = entry.get("testing")
+        # Without this, the old forms fail with mashumaro's error on the whole list (or a leftover test_sources is silently ignored).
+        if isinstance(blocks, dict) or "test_sources" in entry:
+            change, sources = (
+                ("'testing' is now a list", blocks.get("sources")) if isinstance(blocks, dict) else ("'test_sources' was replaced by 'testing', a list", entry["test_sources"])
+            )
+            raise UserNotificationException(
+                f"{kind} '{entry.get('name')}': {change} with one block per test framework. Write:\n  testing:\n    - framework: gtest\n      sources: [{', '.join(sources or [])}]"
+            )
+        if not isinstance(blocks, list):
+            continue
+        frameworks = [block.get("framework") for block in blocks if isinstance(block, dict)]
+        if not all(frameworks):
+            raise UserNotificationException(f"{kind} '{entry.get('name')}': every testing block needs a 'framework'.")
+        if repeated := next((framework for framework in frameworks if frameworks.count(framework) > 1), None):
+            raise UserNotificationException(f"{kind} '{entry.get('name')}': more than one testing block for framework '{repeated}'.")
+
+
 @dataclass
 class YangaUserConfig(ConfigElement):
     #: Pipeline steps to execute
@@ -301,6 +330,8 @@ class YangaUserConfig(ConfigElement):
         for variant in d.get("variants") or []:
             if isinstance(variant, dict) and "features_selection_file" in variant:
                 raise UserNotificationException(f"Variant '{variant.get('name')}': 'features_selection_file' was replaced by 'feature_selection: {{file: ...}}'.")
+        _check_testing_blocks("Component", d.get("components") or [])
+        _check_testing_blocks("Variant", d.get("variants") or [])
         return super().__pre_deserialize__(d)
 
     @classmethod

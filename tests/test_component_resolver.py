@@ -6,7 +6,7 @@ from py_app_dev.core.exceptions import UserNotificationException
 
 from yanga_core.domain.component_resolver import ComponentResolver, resolve_include_directories
 from yanga_core.domain.components import Component
-from yanga_core.domain.config import ComponentConfig, DocsConfig, IncludeDirectory, IncludeDirectoryScope, TestingConfig
+from yanga_core.domain.config import ComponentConfig, DocsConfig, IncludeDirectory, IncludeDirectoryScope, TestingBlockConfig
 from yanga_core.domain.spl_paths import SPLPaths
 
 
@@ -173,17 +173,44 @@ def test_resolve_include_directories_aggregates_components_deduped() -> None:
     assert resolve_include_directories(resolver.selected_components) == [Path("prj/root/a/inc"), Path("prj/root/shared/inc"), Path("prj/root/b/inc")]
 
 
-def test_is_testable_reflects_declared_test_sources() -> None:
+@pytest.mark.parametrize(
+    ("framework", "expected"),
+    [(None, True), ("gtest", True), ("tessy", False)],
+    ids=["any", "declared-framework", "other-framework"],
+)
+def test_is_testable_reflects_declared_test_sources(framework: str | None, expected: bool) -> None:
     configs = [
-        ComponentConfig(name="tested", path=Path("tested"), testing=TestingConfig(sources=["test/test_tested.cc"])),
-        ComponentConfig(name="untested", path=Path("untested")),
+        ComponentConfig(name="tested", path=Path("tested"), testing=[TestingBlockConfig(framework="gtest", sources=["test/test_tested.cc"])]),
+        ComponentConfig(name="untested", path=Path("untested"), testing=[TestingBlockConfig(framework="gtest")]),
     ]
     resolver = make_resolver(configs)
 
-    tested = resolved(resolver, "tested")
-    assert tested.is_testable is True
-    assert tested.test_sources == [Path("prj/root/tested/test/test_tested.cc")]
-    assert resolved(resolver, "untested").is_testable is False
+    assert resolved(resolver, "tested").is_testable(framework) is expected
+    assert resolved(resolver, "untested").is_testable(framework) is False
+
+
+def test_testing_blocks_are_resolved_under_the_component_root() -> None:
+    configs = [
+        ComponentConfig(
+            name="tested",
+            path=Path("tested"),
+            testing=[
+                TestingBlockConfig(framework="gtest", sources=["test/test_a.cc"], mockup_sources=["test/helpers.c"], config={"mocking": {"strict": True}}),
+                TestingBlockConfig(framework="tessy", sources=["tessy/a.tmb"]),
+            ],
+        )
+    ]
+    tested = resolved(make_resolver(configs), "tested")
+
+    gtest, tessy = tested.testing
+    assert (gtest.framework, gtest.sources, gtest.mockup_sources, gtest.config) == (
+        "gtest",
+        [Path("prj/root/tested/test/test_a.cc")],
+        [Path("prj/root/tested/test/helpers.c")],
+        {"mocking": {"strict": True}},
+    )
+    assert (tessy.framework, tessy.sources, tessy.mockup_sources) == ("tessy", [Path("prj/root/tested/tessy/a.tmb")], [])
+    assert tested.test_sources == [Path("prj/root/tested/test/test_a.cc"), Path("prj/root/tested/tessy/a.tmb")]
 
 
 @pytest.fixture
@@ -232,7 +259,7 @@ def test_component_selected_twice_fails_naming_both_ways(container_configs: list
     [
         ComponentConfig(name="networking", subcomponents=["tcp"], sources=["net.c"]),
         ComponentConfig(name="networking", subcomponents=["tcp"], include_directories=[IncludeDirectory("inc", IncludeDirectoryScope.PUBLIC)]),
-        ComponentConfig(name="networking", subcomponents=["tcp"], testing=TestingConfig(sources=["test_networking.cc"])),
+        ComponentConfig(name="networking", subcomponents=["tcp"], testing=[TestingBlockConfig(framework="gtest", sources=["test_networking.cc"])]),
     ],
 )
 def test_container_with_own_sources_includes_or_testing_fails(container: ComponentConfig) -> None:
