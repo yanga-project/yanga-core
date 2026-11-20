@@ -52,6 +52,8 @@ class Component:
     is_subcomponent: bool = False
     #: Resolved subcomponents.
     subcomponents: list["Component"] = field(default_factory=list)
+    #: Names of the components an integration component compiles again, a container replaced by its subcomponents; empty otherwise.
+    integrates: list[str] = field(default_factory=list)
 
     @property
     def test_sources(self) -> list[Path]:

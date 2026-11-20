@@ -37,6 +37,7 @@ The runtime `Component` object resolves all paths and provides:
 - `docs` — `DocsConfiguration` with resolved doc sources
 - `is_subcomponent` — whether this component is nested under another
 - `is_container` — whether this component groups subcomponents
+- `integrates`: the names of the components an integration component compiles again, a container replaced by its subcomponents; empty otherwise
 
 ### Include Directories
 

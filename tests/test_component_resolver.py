@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 from py_app_dev.core.exceptions import UserNotificationException
 
-from yanga_core.domain.component_resolver import ComponentResolver, resolve_include_directories
+from yanga_core.domain import components
+from yanga_core.domain.component_resolver import ComponentResolver, find_testing_block, resolve_include_directories
 from yanga_core.domain.components import Component
 from yanga_core.domain.config import ComponentConfig, DocsConfig, IncludeDirectory, IncludeDirectoryScope, TestingBlockConfig
 from yanga_core.domain.spl_paths import SPLPaths
@@ -68,6 +69,7 @@ def test_component_without_dependencies(configs: list[ComponentConfig]) -> None:
     resolver = make_resolver(configs, selected=["compC"])
 
     assert resolved(resolver, "compC").include_directories == [Path("prj/root/c/src"), Path("prj/root/c/inc")]
+    assert resolved(resolver, "compC").integrates == []
 
 
 def test_required_component_resolved_by_alias() -> None:
@@ -291,6 +293,7 @@ def test_integration_component_compiles_integrated_sources_without_selecting_the
 
     assert selected_names(resolver) == ["test_net"]
     assert resolved(resolver, "test_net").sources == [Path("prj/root/itest/stub.c"), Path("prj/root/tcp/tcp.c"), Path("prj/root/udp/udp.c")]
+    assert resolved(resolver, "test_net").integrates == ["tcp", "udp"]
 
 
 def test_integration_component_gets_all_includes_of_integrated_components(container_configs: list[ComponentConfig]) -> None:
@@ -299,6 +302,7 @@ def test_integration_component_gets_all_includes_of_integrated_components(contai
     resolver = make_resolver(container_configs, selected=["test_tcp"])
 
     assert resolved(resolver, "test_tcp").include_directories == [Path("prj/root/tcp/private"), Path("prj/root/tcp/inc"), Path("prj/root/tcp")]
+    assert resolved(resolver, "test_tcp").integrates == ["tcp"]
 
 
 def test_integrated_alias_uses_platform_choice(pins_configs: list[ComponentConfig]) -> None:
@@ -307,6 +311,14 @@ def test_integrated_alias_uses_platform_choice(pins_configs: list[ComponentConfi
     resolver = make_resolver(pins_configs, selected=["test_io", "uno_pins"])
 
     assert resolved(resolver, "test_io").sources == [Path("prj/root/uno/uno.c")]
+    assert resolved(resolver, "test_io").integrates == ["uno_pins"]
+
+
+@pytest.mark.parametrize(("frameworks", "expected"), [(["tessy", "gtest"], "gtest"), (["tessy"], None), ([], None)])
+def test_find_testing_block_returns_the_block_of_the_framework(frameworks: list[str], expected: str | None) -> None:
+    block = find_testing_block([components.TestingBlock(framework) for framework in frameworks], "gtest")
+
+    assert (block.framework if block else None) == expected
 
 
 def test_integration_cycle_fails_with_chain() -> None:
