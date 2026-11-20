@@ -375,6 +375,8 @@ components the variant does not, which changes the variant's unit tests and cove
   leaves integration components out: their objects are second copies of the integrated components
   and would define their symbols twice. The resolved `Component` keeps the names in `integrates`
   for that.
+- A consumer that must not see the integrated files twice, such as static analysis, reads
+  `own_sources`: the sources the component declares itself.
 
 ### Entries by alias
 

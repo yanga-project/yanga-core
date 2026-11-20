@@ -138,7 +138,8 @@ components:
   `sources` are its own plus those of every integrated component (a container
   stands for all its subcomponents), and its include directories add theirs,
   private ones and source folders included. Its `integrates` lists the names of
-  the integrated components, a container replaced by its subcomponents.
+  the integrated components, a container replaced by its subcomponents. Its
+  `own_sources` holds only its own files.
 - **Aliases.** A `subcomponents` or `integrates` entry may be an alias. If the
   platform already selected a component with that alias, that one is used.
   Otherwise the one declared component with that alias is used; several

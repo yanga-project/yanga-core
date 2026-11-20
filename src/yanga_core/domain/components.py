@@ -34,6 +34,8 @@ class Component:
     path: Path
     #: Located productive source files.
     sources: list[Path] = field(default_factory=list)
+    #: Located source files the component declares itself, without those of the components it integrates.
+    own_sources: list[Path] = field(default_factory=list)
     #: Located documentation source files.
     docs_sources: list[Path] = field(default_factory=list)
     #: Resolved transitive include directories to compile this component against.
@@ -46,6 +48,8 @@ class Component:
     required_components: list[str] = field(default_factory=list)
     #: Another name this component is referred to by.
     alias: str | None = None
+    #: Name of the external project the component comes from; ``None`` for an in-tree component.
+    external: str | None = None
     #: Component description.
     description: str | None = None
     #: Whether this component is a sub-component of another component.
