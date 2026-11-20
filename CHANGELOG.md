@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.16.0 (2026-11-20)
+
+### Features
+
+- Resolved component keeps what it integrates (ycore-003) ([`94b1b82`](https://github.com/yanga-project/yanga-core/commit/94b1b82c9dcb2849deb7c1388aaeda3edffda1a7))
+
 ## v0.15.0 (2026-11-19)
 
 ### Features
