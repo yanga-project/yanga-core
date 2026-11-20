@@ -48,6 +48,11 @@ def resolve_testing_blocks(blocks: list[TestingBlockConfig], locate: Callable[[s
     return [TestingBlock(block.framework, [locate(source) for source in block.sources], [locate(source) for source in block.mockup_sources], block.config) for block in blocks]
 
 
+def find_testing_block(blocks: list[TestingBlock], framework: str) -> TestingBlock | None:
+    """The block of ``framework``; a list holds at most one per framework."""
+    return next((block for block in blocks if block.framework == framework), None)
+
+
 def _declared_docs_sources(config: ComponentConfig) -> list[str]:
     sources = list(config.docs.sources) if config.docs and config.docs.sources else []
     sources.extend(config.docs_sources)
@@ -131,7 +136,8 @@ class ComponentResolver:
         sources = [root / source for source in config.sources]
         include_directories = self._resolve_include_directories(config, root, sources)
         # An integration component compiles the integrated sources again, with everything they need to compile.
-        for integrated in self._integrated_components(config):
+        integrated_components = self._integrated_components(config)
+        for integrated in integrated_components:
             sources.extend(integrated.sources)
             include_directories.extend(integrated.include_directories)
         component = Component(
@@ -145,6 +151,7 @@ class ComponentResolver:
             required_components=config.required_components,
             alias=config.alias,
             description=config.description,
+            integrates=[integrated.name for integrated in integrated_components if not integrated.is_container],
         )
         for subcomponent_name in self._subcomponent_names(config):
             subcomponent = self._component(subcomponent_name)

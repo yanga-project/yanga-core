@@ -369,8 +369,12 @@ components the variant does not, which changes the variant's unit tests and cove
 - Its include directories add each integrated component's resolved include directories, private
   ones and source folders included, because compiling their sources needs them. All its files
   compile with that union.
-- A build backend needs no special case: it is a component with sources and tests. Its objects are
-  its own, so its coverage stays separate from the integrated components' unit tests.
+- A build backend builds it as a component with sources and tests. Its objects are its own, so its
+  coverage stays separate from the integrated components' unit tests.
+- A backend that links several selected components into one executable, such as a variant test,
+  leaves integration components out: their objects are second copies of the integrated components
+  and would define their symbols twice. The resolved `Component` keeps the names in `integrates`
+  for that.
 
 ### Entries by alias
 
