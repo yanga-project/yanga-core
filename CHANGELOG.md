@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.17.0 (2026-11-20)
+
+### Features
+
+- Keep own_sources and external on the resolved component (ycore-001) ([`7b1fd19`](https://github.com/yanga-project/yanga-core/commit/7b1fd19160aeb96be04054f06f8997176625c508))
+
 ## v0.16.0 (2026-11-20)
 
 ### Features
