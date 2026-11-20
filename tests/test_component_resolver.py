@@ -70,6 +70,8 @@ def test_component_without_dependencies(configs: list[ComponentConfig]) -> None:
 
     assert resolved(resolver, "compC").include_directories == [Path("prj/root/c/src"), Path("prj/root/c/inc")]
     assert resolved(resolver, "compC").integrates == []
+    assert resolved(resolver, "compC").own_sources == resolved(resolver, "compC").sources
+    assert resolved(resolver, "compC").external is None
 
 
 def test_required_component_resolved_by_alias() -> None:
@@ -132,6 +134,7 @@ def test_external_component_root_resolves_from_registry() -> None:
     component = resolved(resolver, "arduino_core")
     assert component.path == ext_root / "cores/arduino"  # declared path joined onto the installed project
     assert component.include_directories == [ext_root / "cores/arduino/inc"]
+    assert component.external == "ArduinoCoreAvr"
 
 
 def test_external_component_missing_project_fails_fast() -> None:
@@ -241,6 +244,7 @@ def test_container_selection_expands_nested_subcomponents_in_order(container_con
 
     assert selected_names(resolver) == ["networking", "tcp", "transport", "udp"]
     assert resolved(resolver, "tcp").is_subcomponent is True
+    assert resolved(resolver, "networking").own_sources == []
 
 
 @pytest.mark.parametrize(
@@ -294,6 +298,7 @@ def test_integration_component_compiles_integrated_sources_without_selecting_the
     assert selected_names(resolver) == ["test_net"]
     assert resolved(resolver, "test_net").sources == [Path("prj/root/itest/stub.c"), Path("prj/root/tcp/tcp.c"), Path("prj/root/udp/udp.c")]
     assert resolved(resolver, "test_net").integrates == ["tcp", "udp"]
+    assert resolved(resolver, "test_net").own_sources == [Path("prj/root/itest/stub.c")]
 
 
 def test_integration_component_gets_all_includes_of_integrated_components(container_configs: list[ComponentConfig]) -> None:

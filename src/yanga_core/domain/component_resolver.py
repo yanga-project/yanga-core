@@ -134,6 +134,7 @@ class ComponentResolver:
     def _resolve(self, config: ComponentConfig) -> Component:
         root = self._root_for(config)
         sources = [root / source for source in config.sources]
+        own_sources = list(OrderedDict.fromkeys(sources))
         include_directories = self._resolve_include_directories(config, root, sources)
         # An integration component compiles the integrated sources again, with everything they need to compile.
         integrated_components = self._integrated_components(config)
@@ -144,12 +145,14 @@ class ComponentResolver:
             name=config.name,
             path=root,
             sources=list(OrderedDict.fromkeys(sources)),
+            own_sources=own_sources,
             docs_sources=[root / source for source in _declared_docs_sources(config)],
             include_directories=list(OrderedDict.fromkeys(include_directories)),
             testing=resolve_testing_blocks(config.testing, root.joinpath),
             docs=config.docs,
             required_components=config.required_components,
             alias=config.alias,
+            external=config.external,
             description=config.description,
             integrates=[integrated.name for integrated in integrated_components if not integrated.is_container],
         )

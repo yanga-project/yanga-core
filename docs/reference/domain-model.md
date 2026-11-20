@@ -30,11 +30,13 @@ The runtime `Component` object resolves all paths and provides:
 
 - `name`, `path` — resolved component identity and location
 - `sources` — resolved source file paths
+- `own_sources`: the resolved sources the component declares itself, without the integrated ones
 - `include_dirs` — resolved `IncludeDirectory` list
 - `testing`: `list[TestingBlock]`, the testing blocks with resolved paths
 - `test_sources`: the resolved sources of all testing blocks
 - `is_testable(framework=None)`: whether any block, or the one of `framework`, has sources
 - `docs` — `DocsConfiguration` with resolved doc sources
+- `external`: the name of the external project the component comes from, or `None`
 - `is_subcomponent` — whether this component is nested under another
 - `is_container` — whether this component groups subcomponents
 - `integrates`: the names of the components an integration component compiles again, a container replaced by its subcomponents; empty otherwise
