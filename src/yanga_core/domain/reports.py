@@ -137,6 +137,10 @@ class ComponentReportData(VariantReportData):
     """The component report data content is the same as a variant data content but with extra name."""
 
     name: str = ""
+    #: Component path relative to the project root, with `/` as separator.
+    path: str = ""
+    #: Names of the subcomponents of a container; empty for any other component.
+    subcomponents: list[str] = field(default_factory=list)
 
 
 class ReportScope(StringableEnum):

@@ -1,9 +1,11 @@
 """Write the manifest of what this run publishes, for the SPL overview."""
 
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from py_app_dev.core.exceptions import UserNotificationException
 from py_app_dev.core.logging import logger
@@ -25,6 +27,35 @@ def get_commit(project_root_dir: Path) -> str | None:
     except UserNotificationException:
         return None
     return result.stdout.strip() if result and result.returncode == 0 else None
+
+
+def get_repository_url(project_root_dir: Path) -> str | None:
+    """
+    The HTTPS URL of the `origin` remote, to link commits and sources to the code host.
+
+    None without git, without `origin`, or for a remote with no HTTPS form. Credentials are
+    dropped: a CI remote can carry a token, and the manifest gets published.
+    """
+    try:
+        result = SubprocessExecutor(["git", "remote", "get-url", "origin"], cwd=project_root_dir, print_output=False).execute(handle_errors=False)
+    except UserNotificationException:
+        return None
+    if not result or result.returncode != 0:
+        return None
+    remote = result.stdout.strip()
+    if scp_like := re.fullmatch(r"[^@/:]+@([^/:]+):(.+)", remote):
+        host, path = scp_like.groups()
+    else:
+        parts = urlsplit(remote)
+        if parts.scheme == "https":
+            host = parts.netloc.rpartition("@")[2]
+        elif parts.scheme == "ssh":
+            host = parts.hostname or ""
+        else:
+            return None
+        path = parts.path
+    path = path.strip("/").removesuffix(".git")
+    return f"https://{host}/{path}" if host and path else None
 
 
 def to_site_link(path: Path, site_root: Path) -> str:
@@ -57,6 +88,7 @@ class WritePublishManifest(PipelineStep[ExecutionContext]):
     def create_manifest(self) -> tuple[PublishManifest, Path, Path]:
         build_time = datetime.now(UTC).isoformat(timespec="seconds")
         commit = get_commit(self.project_root_dir)
+        repository_url = get_repository_url(self.project_root_dir)
         context = self.execution_context
         if isinstance(context, YangaExecutionContext) and context.variant_name:
             features_files = context.data_registry.find_data(FeaturesReportRelevantFile)
@@ -68,12 +100,13 @@ class WritePublishManifest(PipelineStep[ExecutionContext]):
                 platform=context.platform.name if context.platform else None,
                 build_type=context.user_request.build_type,
                 commit=commit,
+                repository_url=repository_url,
                 description=context.variant.description if context.variant else None,
                 features=json.loads(features_file.read_text(encoding="utf-8")) if features_file and features_file.is_file() else {},
             )
             return manifest, context.spl_paths.variant_build_dir, context.spl_paths.build_dir
         spl_paths = get_registered_spl_paths(context)
-        return PublishManifest(scope=ReportScope.SPL, build_time=build_time, commit=commit), spl_paths.spl_build_dir, spl_paths.build_dir
+        return PublishManifest(scope=ReportScope.SPL, build_time=build_time, commit=commit, repository_url=repository_url), spl_paths.spl_build_dir, spl_paths.build_dir
 
     def run(self) -> int:
         manifest, output_dir, site_root = self.create_manifest()

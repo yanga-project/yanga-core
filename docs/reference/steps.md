@@ -95,6 +95,7 @@ Aggregates all `ReportRelevantFiles` and `FeaturesReportRelevantFile` entries fr
 **Behavior:**
 - Groups report-relevant files by component (using `UserRequest.component_name`)
 - Creates `ComponentReportData` for each component and `VariantReportData` for variant-scoped files
+- Records for each selected component its path relative to the project root and, for a container, the names of its subcomponents
 - Serializes the complete `ReportData` as JSON
 
 This step should be placed after all steps and generators that register report-relevant files, and before any step that consumes the report configuration (e.g., a build step that invokes Sphinx).
@@ -149,7 +150,7 @@ Writes `publish_manifest.json`: what this run publishes and where readers find i
 
 - In a variant build it writes into `<variant_build_dir>` with the variant, platform, build type, the variant description and the selected features.
 - In the SPL pipeline (after `RegisterSplPaths`) it writes into `<spl_build_dir>`.
-- Both record the commit (`git rev-parse HEAD`, empty outside a git checkout) and the build time.
+- Both record the commit (`git rev-parse HEAD`, empty outside a git checkout), the repository URL and the build time. The repository URL comes from the `origin` remote in HTTPS form, with any credentials dropped; it is empty when there is none.
 - Locally nothing is published, so each link is relative to the build dir, which is the site root. A file outside the build dir is an error: a `file://` link would break as soon as the site moves.
 
 ---
@@ -168,7 +169,7 @@ Finds every `publish_manifest.json` under the variant build root and in the SPL 
 
 Renders the project's Jinja2 template to `<build_dir>/index.html`, the SPL overview. The template gets one object, `overview`, with:
 
-- `project_name`, `generated_at`, `commit` (of the SPL documentation run)
+- `project_name`, `generated_at`, `commit` and `repository_url` (of the SPL documentation run; `repository_url` is empty when none was detected)
 - `documentation`: the entries of the SPL manifest (`kind`, `name`, `link`)
 - `variants`: per variant `name`, `description`, `features` (from its newest build) and `builds`; per build `platform`, `build_type`, `commit`, `build_time`, `reports` and `artifacts`
 
