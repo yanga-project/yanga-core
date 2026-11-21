@@ -204,8 +204,12 @@ Report data types for documentation pipelines:
 
 - `ReportRelevantFiles` — files contributed by steps/generators for report inclusion
 - `FeaturesReportRelevantFile` — KConfig features JSON file reference
-- `ComponentReportData` — aggregated report data for a single component
+- `ComponentReportData` — aggregated report data for a single component. `path` is the component path relative to the project root, with `/` as separator. `subcomponents` names the subcomponents of a container and is empty for any other component.
 - `VariantReportData` — aggregated report data for a variant
 - `ReportData` — complete report configuration written as `report_config.json`
 
 `ReportRelevantFileType` categories: `DOCS`, `SOURCES`, `TEST_RESULT`, `LINT_RESULT`, `COVERAGE_RESULT`, `OTHER`, `HTML`.
+
+## Publish manifest
+
+`PublishManifest` records what one run publishes. Next to the `commit` it carries `repository_url`, set by `get_repository_url(project_root_dir)` in `yanga_core.steps.write_publish_manifest`. The function reads the `origin` remote and returns its HTTPS form (`git@host:org/repo.git` becomes `https://host/org/repo`), without credentials. It returns `None` without git, without `origin`, or for a remote with no HTTPS form. The SPL overview passes the SPL manifest's `repository_url` to its template as `overview.repository_url`.

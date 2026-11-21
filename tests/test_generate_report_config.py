@@ -7,6 +7,7 @@ from py_app_dev.core.data_registry import DataRegistry
 
 from tests.utils import assert_element_of_type
 from yanga_core.docs.sphinx import SphinxReportConfig
+from yanga_core.domain.components import Component
 from yanga_core.domain.execution_context import ExecutionContext, UserRequest, UserRequestScope, UserRequestTarget
 from yanga_core.domain.reports import ComponentReportData, ReportRelevantFiles, ReportRelevantFileType
 from yanga_core.steps.generate_report_config import GenerateReportConfig
@@ -64,8 +65,7 @@ def test_generate_report_config_empty_registry(env: ExecutionContext) -> None:
 
 
 def test_generate_report_config_lists_selected_component_without_files(env: ExecutionContext) -> None:
-    container = Mock()
-    container.name = "container"
+    container = Component(name="container", path=env.project_root_dir / "src" / "container")
     env.components = [container]  # type: ignore[misc]
 
     GenerateReportConfig(env).run()
@@ -73,6 +73,25 @@ def test_generate_report_config_lists_selected_component_without_files(env: Exec
     config_data = SphinxReportConfig.from_dict(json.loads((env.spl_paths.variant_build_dir / "report_config.json").read_text()))
     assert [component.name for component in config_data.components] == ["container"]
     assert config_data.components[0].files == []
+
+
+def test_generate_report_config_records_component_path_and_subcomponents(env: ExecutionContext) -> None:
+    root = env.project_root_dir
+    led = Component(name="led", path=root / "src" / "light" / "led", is_subcomponent=True)
+    button = Component(name="button", path=root / ".yanga" / "ext" / "drivers" / "button", external="drivers", is_subcomponent=True)
+    light = Component(name="light", path=root / "src" / "light", subcomponents=[led, button])
+    app = Component(name="app", path=root / "src" / "app")
+    env.configure_mock(components=[light, led, button, app])
+
+    GenerateReportConfig(env).run()
+
+    config_data = SphinxReportConfig.from_dict(json.loads((env.spl_paths.variant_build_dir / "report_config.json").read_text()))
+    assert {component.name: (component.path, component.subcomponents) for component in config_data.components} == {
+        "light": ("src/light", ["led", "button"]),
+        "led": ("src/light/led", []),
+        "button": (".yanga/ext/drivers/button", []),
+        "app": ("src/app", []),
+    }
 
 
 def test_generate_report_config_with_components(env_with_platform: ExecutionContext) -> None:

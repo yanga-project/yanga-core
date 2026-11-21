@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any
 
@@ -42,8 +43,9 @@ class GenerateReportConfig(PipelineStep[ExecutionContext]):
         self.logger.info(f"Run {self.get_name()}")
         relevant_files_entries = self.execution_context.data_registry.find_data(ReportRelevantFiles)
 
+        selected_components = {component.name: component for component in self.execution_context.components}
         # Every selected component gets an entry, even without report files (e.g. a container).
-        components_data: dict[str, list[ReportRelevantFiles]] = {component.name: [] for component in self.execution_context.components}
+        components_data: dict[str, list[ReportRelevantFiles]] = {component_name: [] for component_name in selected_components}
         variant_data: list[ReportRelevantFiles] = []
         for entry in relevant_files_entries:
             if entry.target.component_name:
@@ -61,8 +63,12 @@ class GenerateReportConfig(PipelineStep[ExecutionContext]):
                     name=component_name,
                     files=files,
                     build_dir=self.execution_context.spl_paths.get_component_build_dir(component_name),
+                    # relpath, not relative_to: an external component may lie outside the project root.
+                    path=Path(os.path.relpath(component.path, self.execution_context.project_root_dir)).as_posix() if component else "",
+                    subcomponents=[subcomponent.name for subcomponent in component.subcomponents] if component else [],
                 )
                 for component_name, files in components_data.items()
+                for component in [selected_components.get(component_name)]
             ],
         )
         if variant_data:

@@ -49,6 +49,8 @@ class PublishManifest(BaseConfigJSONMixin):
     platform: str | None = None
     build_type: str | None = None
     commit: str | None = None
+    #: HTTPS URL of the `origin` remote, without credentials; None when none is detected.
+    repository_url: str | None = None
     description: str | None = None
     #: Selected features and their values, as the feature model generator wrote them.
     features: dict[str, Any] = field(default_factory=dict)

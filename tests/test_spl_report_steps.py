@@ -38,6 +38,7 @@ from pathlib import Path
 import pytest
 from py_app_dev.core.exceptions import UserNotificationException
 from py_app_dev.core.logging import logger
+from py_app_dev.core.subprocess import SubprocessExecutor
 from pypeline.domain.execution_context import ExecutionContext
 
 from yanga_core.domain.config import PlatformConfig, VariantConfig
@@ -50,7 +51,7 @@ from yanga_core.steps.generate_spl_report_config import GenerateSplReportConfig
 from yanga_core.steps.register_spl_paths import RegisterSplPaths, get_registered_spl_paths
 from yanga_core.steps.render_spl_overview import RenderSplOverview, create_overview
 from yanga_core.steps.sphinx_build_report import SphinxBuildReport
-from yanga_core.steps.write_publish_manifest import WritePublishManifest
+from yanga_core.steps.write_publish_manifest import WritePublishManifest, get_repository_url
 
 
 def create_context_with_registered_paths(tmp_path: Path) -> ExecutionContext:
@@ -63,6 +64,12 @@ def write_file(file: Path, content: str = "") -> Path:
     file.parent.mkdir(parents=True, exist_ok=True)
     file.write_text(content)
     return file
+
+
+def init_git_repo(path: Path, origin: str | None = None) -> None:
+    SubprocessExecutor(["git", "init", "--quiet"], cwd=path, print_output=False).execute()
+    if origin:
+        SubprocessExecutor(["git", "remote", "add", "origin", origin], cwd=path, print_output=False).execute()
 
 
 def write_manifest(file: Path, manifest: PublishManifest) -> None:
@@ -116,6 +123,7 @@ def test_write_publish_manifest_for_a_variant_build(tmp_path: Path) -> None:
         platform=PlatformConfig(name="p1"),
         variant=VariantConfig(name="V1", description="The first variant"),
     )
+    init_git_repo(tmp_path, "https://github.com/org/repo.git")
     build_dir = tmp_path / ".yanga/build/variants/V1/p1/Debug"
     features_file = write_file(build_dir / "kconfig/autoconf.json", '{"BLINKING": true, "PERIOD": 10}')
     context.data_registry.insert(FeaturesReportRelevantFile(provider="test", json_config_file=features_file), "test")
@@ -128,6 +136,7 @@ def test_write_publish_manifest_for_a_variant_build(tmp_path: Path) -> None:
     manifest = PublishManifest.from_json_file(build_dir / PUBLISH_MANIFEST_FILE_NAME)
     assert (manifest.scope, manifest.variant, manifest.platform, manifest.build_type) == (ReportScope.VARIANT, "V1", "p1", "Debug")
     assert manifest.description == "The first variant"
+    assert manifest.repository_url == "https://github.com/org/repo"
     assert manifest.features == {"BLINKING": True, "PERIOD": 10}
     assert manifest.entries == [ManifestEntry(PublishKind.REPORT, "Variant report", "variants/V1/p1/Debug/reports/index.html")]
 
@@ -141,7 +150,31 @@ def test_write_publish_manifest_for_the_spl_documentation_report(tmp_path: Path)
 
     manifest = PublishManifest.from_json_file(tmp_path / ".yanga/build/spl" / PUBLISH_MANIFEST_FILE_NAME)
     assert manifest.scope == ReportScope.SPL
+    assert manifest.repository_url is None
     assert manifest.entries == [ManifestEntry(PublishKind.REPORT, "SPL documentation", "spl/reports/index.html")]
+
+
+@pytest.mark.parametrize(
+    ("origin", "expected"),
+    [
+        ("https://github.com/org/repo.git", "https://github.com/org/repo"),
+        ("https://github.com/org/repo", "https://github.com/org/repo"),
+        ("https://user:secret@gitlab.example.com/org/repo.git", "https://gitlab.example.com/org/repo"),
+        ("https://host.example.com:8443/org/repo.git", "https://host.example.com:8443/org/repo"),
+        ("git@github.com:org/repo.git", "https://github.com/org/repo"),
+        ("ssh://git@host.example.com:2222/org/repo.git", "https://host.example.com/org/repo"),
+        ("/some/local/path", None),
+        (None, None),
+    ],
+)
+def test_get_repository_url_turns_origin_into_https(tmp_path: Path, origin: str | None, expected: str | None) -> None:
+    init_git_repo(tmp_path, origin)
+
+    assert get_repository_url(tmp_path) == expected
+
+
+def test_get_repository_url_without_git_checkout(tmp_path: Path) -> None:
+    assert get_repository_url(tmp_path) is None
 
 
 def test_write_publish_manifest_refuses_outputs_outside_the_site_root(tmp_path: Path) -> None:
@@ -193,12 +226,18 @@ def test_create_overview_groups_builds_by_variant_with_the_newest_facts() -> Non
                 ManifestEntry(PublishKind.ARTIFACT, "Executable", "variants/V1/p1/app.exe"),
             ],
         ),
-        PublishManifest(scope=ReportScope.SPL, build_time="t", commit="abc", entries=[ManifestEntry(PublishKind.REPORT, "SPL documentation", "spl/reports/index.html")]),
+        PublishManifest(
+            scope=ReportScope.SPL,
+            build_time="t",
+            commit="abc",
+            repository_url="https://github.com/org/repo",
+            entries=[ManifestEntry(PublishKind.REPORT, "SPL documentation", "spl/reports/index.html")],
+        ),
     ]
 
     overview = create_overview("MySPL", manifests)
 
-    assert overview.commit == "abc"
+    assert (overview.commit, overview.repository_url) == ("abc", "https://github.com/org/repo")
     assert [entry.link for entry in overview.documentation] == ["spl/reports/index.html"]
     assert [(variant.name, variant.description) for variant in overview.variants] == [("V1", "new"), ("V2", None)]
     first_build = overview.variants[0].builds[0]

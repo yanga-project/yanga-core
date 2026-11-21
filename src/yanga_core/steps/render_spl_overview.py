@@ -52,6 +52,8 @@ class SplOverview:
     project_name: str
     generated_at: str
     commit: str | None = None
+    #: Code host URL of the repository, from the SPL manifest; None when none was detected.
+    repository_url: str | None = None
     documentation: list[ManifestEntry] = field(default_factory=list)
     variants: list[OverviewVariant] = field(default_factory=list)
 
@@ -60,6 +62,7 @@ def create_overview(project_name: str, manifests: list[PublishManifest]) -> SplO
     overview = SplOverview(project_name=project_name, generated_at=datetime.now(UTC).isoformat(timespec="seconds"))
     for spl_manifest in (manifest for manifest in manifests if manifest.scope == ReportScope.SPL):
         overview.commit = spl_manifest.commit
+        overview.repository_url = spl_manifest.repository_url
         overview.documentation.extend(spl_manifest.entries)
     variant_manifests = sorted(
         (manifest for manifest in manifests if manifest.scope == ReportScope.VARIANT and manifest.variant),
