@@ -159,6 +159,7 @@ class KConfigGen(PipelineStep[ExecutionContext]):
                 ),
                 files_to_be_included=[self.features_doc_file],
                 file_type=ReportRelevantFileType.OTHER,
+                tags=["variant", "configuration"],
             ),
             self.get_name(),
         )

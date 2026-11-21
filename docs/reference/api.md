@@ -149,3 +149,4 @@ Extends `ReportData` with Sphinx-specific utilities:
 - `from_json_file(path)` — load and parse `report_config.json`
 - `create_component_myst_toc(component_name)` — generate a MyST toctree directive for a component's documentation files
 - `get_component_files_list()` / `get_variant_files_list()` — collect relativized file paths
+- `files(*tags)` / `untagged()`: toctree lines of the entries that carry all given tags, or of the entries without tags, for templates that place entries by tag

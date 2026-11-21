@@ -80,6 +80,8 @@ class ReportRelevantFiles(BaseConfigJSONMixin):
     all_files: list[Path] = field(default_factory=list)
     #: Generated html content that is relevant for the report and shall be referenced as-is
     html_content: ReportRelevantHtmlContent | None = None
+    #: Free tags that place the entry in the report (e.g., level, kind, component name)
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -141,6 +143,8 @@ class ComponentReportData(VariantReportData):
     path: str = ""
     #: Names of the subcomponents of a container; empty for any other component.
     subcomponents: list[str] = field(default_factory=list)
+    #: Names of the components an integration component integrates; empty for any other component.
+    integrates: list[str] = field(default_factory=list)
 
 
 class ReportScope(StringableEnum):
@@ -195,6 +199,20 @@ class ReportData(BaseConfigJSONMixin):
         if self.scope == ReportScope.SPL:
             return self.project_name or "Unknown"
         return self.variant_name or "Unknown"
+
+    def entries(self, *tags: str) -> list[ReportRelevantFiles]:
+        """Entries carrying all given tags: components in `components` order, each in registration order, then the variant entries."""
+        return [entry for entry in self._all_entries() if set(tags) <= set(entry.tags)]
+
+    def untagged_entries(self) -> list[ReportRelevantFiles]:
+        """Entries without tags, in the same order as `entries`."""
+        return [entry for entry in self._all_entries() if not entry.tags]
+
+    def _all_entries(self) -> list[ReportRelevantFiles]:
+        result = [entry for comp in self.components for entry in comp.files]
+        if self.variant_data:
+            result.extend(self.variant_data.files)
+        return result
 
     def collect_all_files(self) -> list[Path]:
         result = []

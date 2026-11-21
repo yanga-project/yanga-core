@@ -81,16 +81,18 @@ def test_generate_report_config_records_component_path_and_subcomponents(env: Ex
     button = Component(name="button", path=root / ".yanga" / "ext" / "drivers" / "button", external="drivers", is_subcomponent=True)
     light = Component(name="light", path=root / "src" / "light", subcomponents=[led, button])
     app = Component(name="app", path=root / "src" / "app")
-    env.configure_mock(components=[light, led, button, app])
+    light_test = Component(name="light_test", path=root / "test" / "light", integrates=["led", "button"])
+    env.configure_mock(components=[light, led, button, app, light_test])
 
     GenerateReportConfig(env).run()
 
     config_data = SphinxReportConfig.from_dict(json.loads((env.spl_paths.variant_build_dir / "report_config.json").read_text()))
-    assert {component.name: (component.path, component.subcomponents) for component in config_data.components} == {
-        "light": ("src/light", ["led", "button"]),
-        "led": ("src/light/led", []),
-        "button": (".yanga/ext/drivers/button", []),
-        "app": ("src/app", []),
+    assert {component.name: (component.path, component.subcomponents, component.integrates) for component in config_data.components} == {
+        "light": ("src/light", ["led", "button"], []),
+        "led": ("src/light/led", [], []),
+        "button": (".yanga/ext/drivers/button", [], []),
+        "app": ("src/app", [], []),
+        "light_test": ("test/light", [], ["led", "button"]),
     }
 
 

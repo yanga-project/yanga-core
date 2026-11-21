@@ -66,6 +66,7 @@ class GenerateReportConfig(PipelineStep[ExecutionContext]):
                     # relpath, not relative_to: an external component may lie outside the project root.
                     path=Path(os.path.relpath(component.path, self.execution_context.project_root_dir)).as_posix() if component else "",
                     subcomponents=[subcomponent.name for subcomponent in component.subcomponents] if component else [],
+                    integrates=list(component.integrates) if component else [],
                 )
                 for component_name, files in components_data.items()
                 for component in [selected_components.get(component_name)]

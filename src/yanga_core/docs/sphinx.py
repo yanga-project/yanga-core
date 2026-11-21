@@ -9,7 +9,7 @@ from typing import Any
 
 from py_app_dev.core.exceptions import UserNotificationException
 
-from yanga_core.domain.reports import ComponentReportData, ReportData, VariantReportData
+from yanga_core.domain.reports import ComponentReportData, ReportData, ReportRelevantFiles, ReportRelevantFileType, ReportRelevantHtmlContent, VariantReportData
 
 
 def _relativize_path(file: Path, project_dir: Path) -> str:
@@ -51,11 +51,11 @@ class SphinxReportConfig(ReportData):
             if hasattr(config, attr):
                 files = getattr(config, attr)
                 for file in files:
-                    content.append(f"/{self._relativize_path(file)}")
+                    content.append(self._toctree_path(file))
         for html_content in config.html_content or []:
             # (!) I found this approach of referencing html content here:
             # https://stackoverflow.com/questions/27979803/external-relative-link-in-sphinx-toctree-directive
-            content.append(f"{html_content.name} <./{html_content.index_html.as_posix()}#http://>")
+            content.append(self._toctree_html(html_content))
         return content
 
     def get_component_files_list(self, component_name: str) -> list[str]:
@@ -68,6 +68,28 @@ class SphinxReportConfig(ReportData):
         if not self.variant_data:
             return []
         return self._collect_files_from_config(self.variant_data)
+
+    def files(self, *tags: str) -> list[str]:
+        """Toctree lines of the entries that carry all given tags, in the order of `entries`."""
+        return [line for entry in self.entries(*tags) for line in self._entry_lines(entry)]
+
+    def untagged(self) -> list[str]:
+        """Toctree lines of the entries without tags, in the order of `untagged_entries`."""
+        return [line for entry in self.untagged_entries() for line in self._entry_lines(entry)]
+
+    def _entry_lines(self, entry: ReportRelevantFiles) -> list[str]:
+        lines = []
+        if entry.file_type != ReportRelevantFileType.HTML:
+            lines = [self._toctree_path(file) for file in entry.files_to_be_included]
+        if entry.html_content:
+            lines.append(self._toctree_html(entry.html_content))
+        return lines
+
+    def _toctree_path(self, file: Path) -> str:
+        return f"/{self._relativize_path(file)}"
+
+    def _toctree_html(self, html_content: ReportRelevantHtmlContent) -> str:
+        return f"{html_content.name} <./{html_content.index_html.as_posix()}#http://>"
 
     @property
     def say_hello(self) -> str:
