@@ -2,8 +2,10 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from py_app_dev.core.data_registry import DataRegistry
 
 from yanga_core.domain.execution_context import ExecutionContext
+from yanga_core.domain.reports import ReportRelevantFiles
 from yanga_core.steps.kconfig_gen import KConfigGen
 
 
@@ -51,3 +53,12 @@ def test_output_stem(
     kconfig_dir = execution_context.spl_paths.variant_build_dir / "kconfig"
     assert step.get_outputs() == [kconfig_dir / f"{expected_stem}.{ext}" for ext in ("h", "md", "json")]
     assert step.json_config_file == kconfig_dir / f"{expected_stem}.json"
+
+
+def test_features_documentation_is_tagged_as_variant_configuration(execution_context: ExecutionContext) -> None:
+    (execution_context.project_root_dir / "KConfig").write_text('config FOO\n    bool "Foo"\n    default y\n')
+    execution_context.configure_mock(data_registry=DataRegistry(), variant_feature_selection_file=None)
+
+    assert KConfigGen(execution_context).run() == 0
+
+    assert [entry.tags for entry in execution_context.data_registry.find_data(ReportRelevantFiles)] == [["variant", "configuration"]]

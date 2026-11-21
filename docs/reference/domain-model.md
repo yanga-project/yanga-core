@@ -204,11 +204,26 @@ Report data types for documentation pipelines:
 
 - `ReportRelevantFiles` — files contributed by steps/generators for report inclusion
 - `FeaturesReportRelevantFile` — KConfig features JSON file reference
-- `ComponentReportData` — aggregated report data for a single component. `path` is the component path relative to the project root, with `/` as separator. `subcomponents` names the subcomponents of a container and is empty for any other component.
+- `ComponentReportData` — aggregated report data for a single component. `path` is the component path relative to the project root, with `/` as separator. `subcomponents` names the subcomponents of a container and is empty for any other component. `integrates` names the components an integration component integrates and is empty for any other component.
 - `VariantReportData` — aggregated report data for a variant
 - `ReportData` — complete report configuration written as `report_config.json`
 
 `ReportRelevantFileType` categories: `DOCS`, `SOURCES`, `TEST_RESULT`, `LINT_RESULT`, `COVERAGE_RESULT`, `OTHER`, `HTML`.
+
+Each `ReportRelevantFiles` entry has `tags`, a list of free strings, empty by default. The tags place the entry in the report; the `file_type` only says how to include it. `ReportData` selects entries by tag:
+
+- `entries(*tags)` returns the entries that carry all given tags, and an empty list when none does.
+- `untagged_entries()` returns the entries without tags.
+
+Both keep this order: the components in `components` order, each with its entries in registration order, then the variant entries.
+
+The generators set the tags. They follow this vocabulary, a convention and not an enum:
+
+- Level: `component`, `container`, `variant`, `overall`, plus `merged` for a merge over several components or containers. `container` covers containers (`subcomponents`) and integration components (`integrates`).
+- Kind: `docs`, `sources`, `test`, `coverage`, `static-analysis`, `configuration`.
+- Name: the component name, on the component's own entries.
+
+yanga-core tags the entries it registers itself: `KConfigGen` registers the feature documentation with `variant` and `configuration`.
 
 ## Publish manifest
 

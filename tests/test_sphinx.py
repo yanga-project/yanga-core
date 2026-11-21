@@ -125,3 +125,78 @@ def test_all_files_are_built_but_not_listed_in_the_toc(tmp_path: Path) -> None:
 
     assert config.collect_all_files() == [tmp_path / "sources.md", tmp_path / "comp.c.md"]
     assert config.get_component_files_list("comp") == ["/sources.md"]
+
+
+def _entry(file: Path, *tags: str) -> ReportRelevantFiles:
+    target = UserRequest(UserRequestScope.COMPONENT, target=UserRequestTarget.DOCS)
+    return ReportRelevantFiles(target=target, file_type=ReportRelevantFileType.DOCS, files_to_be_included=[file], tags=list(tags))
+
+
+def _tagged_report(project_dir: Path) -> ReportData:
+    return ReportData(
+        project_dir=project_dir,
+        components=[
+            ComponentReportData(
+                name="a",
+                files=[
+                    _entry(project_dir / "a_test.md", "component", "test", "a"),
+                    _entry(project_dir / "a_notes.md"),
+                    _entry(project_dir / "a_docs.md", "component", "docs", "a"),
+                ],
+            ),
+            ComponentReportData(name="b", files=[_entry(project_dir / "b_docs.md", "component", "docs", "b")]),
+        ],
+        variant_data=VariantReportData(files=[_entry(project_dir / "v_test.md", "variant", "test"), _entry(project_dir / "v_readme.md")]),
+    )
+
+
+def test_tags_survive_report_config_round_trip(tmp_path: Path) -> None:
+    report = _tagged_report(tmp_path)
+    config_file = tmp_path / "report_config.json"
+    config_file.write_text(report.to_json_string())
+
+    restored = SphinxReportConfig.from_json_file(config_file)
+
+    assert [entry.tags for comp in restored.components for entry in comp.files] == [["component", "test", "a"], [], ["component", "docs", "a"], ["component", "docs", "b"]]
+    assert restored.variant_data is not None
+    assert [entry.tags for entry in restored.variant_data.files] == [["variant", "test"], []]
+
+
+@pytest.mark.parametrize(
+    ("tags", "expected"),
+    [
+        (("docs",), ["a_docs.md", "b_docs.md"]),
+        (("test",), ["a_test.md", "v_test.md"]),
+        (("component", "a"), ["a_test.md", "a_docs.md"]),
+        (("component", "test"), ["a_test.md"]),
+        (("coverage",), []),
+    ],
+)
+def test_entries_select_by_all_tags_in_registration_order(tmp_path: Path, tags: tuple[str, ...], expected: list[str]) -> None:
+    report = _tagged_report(tmp_path)
+    assert [entry.files_to_be_included[0].name for entry in report.entries(*tags)] == expected
+
+
+def test_untagged_entries(tmp_path: Path) -> None:
+    report = _tagged_report(tmp_path)
+    assert [entry.files_to_be_included[0].name for entry in report.untagged_entries()] == ["a_notes.md", "v_readme.md"]
+
+
+def test_toctree_lines_by_tag(tmp_path: Path) -> None:
+    target = UserRequest(UserRequestScope.COMPONENT, component_name="a", target=UserRequestTarget.REPORT)
+    coverage = ReportRelevantFiles(
+        target=target,
+        file_type=ReportRelevantFileType.HTML,
+        files_to_be_included=[],
+        html_content=ReportRelevantHtmlContent(name="Coverage Report", index_html=Path("a/coverage/index.html")),
+        tags=["component", "coverage"],
+    )
+    config = SphinxReportConfig(
+        project_dir=tmp_path,
+        components=[ComponentReportData(name="a", files=[_entry(tmp_path / "a" / "index.md", "component", "docs"), coverage, _entry(tmp_path / "a" / "notes.md")])],
+        variant_data=VariantReportData(files=[_entry(tmp_path / "readme.md")]),
+    )
+
+    assert config.files("component") == ["/a/index.md", "Coverage Report <./a/coverage/index.html#http://>"]
+    assert config.files("component", "coverage") == ["Coverage Report <./a/coverage/index.html#http://>"]
+    assert config.untagged() == ["/a/notes.md", "/readme.md"]

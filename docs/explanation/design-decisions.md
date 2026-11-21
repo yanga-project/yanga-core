@@ -391,3 +391,53 @@ shared by several declared components, none of them selected, is an error that l
   sources) surface when the resolver is created, not at load; an integration cycle surfaces when
   the components are resolved.
 - A resolved container exposes `is_container` and its resolved `subcomponents`.
+
+## Tagged Report Entries
+
+**Decision:** every entry registered for a report (`ReportRelevantFiles`) carries a set of tags,
+free strings set by the generator that registers it. The report data offers the entries by tag;
+the project's report template decides the structure by filtering on tags. yanga-core defines no
+list of chapters, scopes or groups.
+
+### Why
+
+A variant report holds results at several levels: one component, one container, all components
+merged, all containers merged, the variant test, and everything merged. Each new way to group them
+(platform components, external components) would add a value to a closed list in yanga-core and a
+change in every consumer of that list. The report layout also differs between projects: one reads
+by level, another by kind of result.
+
+Tags keep yanga-core closed for change and open for extension. A generator adds a tag; a template
+uses it. Neither needs a new yanga-core release.
+
+A closed list of scopes was considered first. It grew from four to six values in one discussion,
+and each value combined two facts (for example "all components" is "component" and "merged").
+Tags state the facts one by one, and a template combines them.
+
+### The shape
+
+- `ReportRelevantFiles` gets `tags: list[str]`, empty by default. The `file_type` stays: it tells
+  the renderer how to include a file (a page or HTML copied as is), which is not a question of
+  structure.
+- The report data selects entries by tag: `ReportData.entries(*tags)` returns the entries that
+  carry all given tags and `ReportData.untagged_entries()` the entries without tags, in
+  registration order within each component and within the variant entries, components in report
+  order, then the variant entries. The template-facing `SphinxReportConfig.files(*tags)` and
+  `SphinxReportConfig.untagged()` return the toctree lines of those entries.
+- Generators set tags from a documented vocabulary. Level: `component`, `container`, `variant`,
+  `overall`, plus `merged` for a merge over several components or containers. `container` covers
+  containers (with `subcomponents`) and integration components (with `integrates`); the component
+  report data names both lists. Kind: `docs`, `sources`, `test`, `coverage`, `static-analysis`,
+  `configuration`. Name: the component's name on its own entries. The vocabulary is a convention
+  in the docs, not an enum.
+
+### Consequences
+
+- The structure of a report lives only in the project's template; two projects can lay out the
+  same entries differently.
+- The tags a generator sets are part of its contract: renaming one breaks the templates that use
+  it, the same as renaming a field.
+- A tag that no entry carries gives an empty selection without an error. A template should skip
+  empty groups, and a check can warn about a tag in the template that no entry carries.
+- A tag that needs data the resolver does not keep (whether the platform selected a component)
+  can only be set once yanga-core keeps that data.
