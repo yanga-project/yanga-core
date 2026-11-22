@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.18.0 (2026-11-22)
+
+### Features
+
+- Tagged report entries (ycore-005) ([`92224a6`](https://github.com/yanga-project/yanga-core/commit/92224a68830215e26c80fc1d38732d8c8c01905b))
+- Component path, containers and repository url for the reports (ycore-004) ([`7965d86`](https://github.com/yanga-project/yanga-core/commit/7965d866983861f5c1871c390bd92a8a0f88eb29))
+
 ## v0.17.0 (2026-11-20)
 
 ### Features
